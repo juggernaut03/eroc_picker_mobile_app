@@ -1,0 +1,81 @@
+import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+
+class ApiService {
+  static const String baseUrl = 'http://187.127.164.170:3000/api';
+
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
+  static Future<Map<String, String>> _authHeaders() async {
+    final token = await _storage.read(key: 'auth_token');
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
+  static Future<Map<String, dynamic>> get(String path) async {
+    final headers = await _authHeaders();
+    final response = await http.get(
+      Uri.parse('$baseUrl$path'),
+      headers: headers,
+    );
+    return _handle(response);
+  }
+
+  static Future<Map<String, dynamic>> post(
+      String path, Map<String, dynamic> body) async {
+    final headers = await _authHeaders();
+    final response = await http.post(
+      Uri.parse('$baseUrl$path'),
+      headers: headers,
+      body: jsonEncode(body),
+    );
+    return _handle(response);
+  }
+
+  static Future<Map<String, dynamic>> put(
+      String path, Map<String, dynamic> body) async {
+    final headers = await _authHeaders();
+    final response = await http.put(
+      Uri.parse('$baseUrl$path'),
+      headers: headers,
+      body: jsonEncode(body),
+    );
+    return _handle(response);
+  }
+
+  static Future<Map<String, dynamic>> patch(
+      String path, Map<String, dynamic> body) async {
+    final headers = await _authHeaders();
+    final response = await http.patch(
+      Uri.parse('$baseUrl$path'),
+      headers: headers,
+      body: jsonEncode(body),
+    );
+    return _handle(response);
+  }
+
+  static Map<String, dynamic> _handle(http.Response response) {
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return body;
+    }
+    throw ApiException(
+      body['message'] ?? 'Request failed',
+      response.statusCode,
+    );
+  }
+}
+
+class ApiException implements Exception {
+  final String message;
+  final int statusCode;
+  ApiException(this.message, this.statusCode);
+
+  @override
+  String toString() => message;
+}
