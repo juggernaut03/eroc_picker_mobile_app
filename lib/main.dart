@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'providers/auth_provider.dart';
+import 'screens/splash_screen.dart';
 import 'utils/app_theme.dart';
 
 void main() {
@@ -10,10 +13,16 @@ class PickerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Picker',
-      theme: AppTheme.light,
-      home: const Scaffold(body: Center(child: Text('Picker App'))),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
+      child: MaterialApp(
+        title: 'Picker',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        home: const SplashScreen(),
+      ),
     );
   }
 }
