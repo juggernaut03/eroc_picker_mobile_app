@@ -148,3 +148,85 @@ class _LoginScreenState extends State<LoginScreen> {
                             decoration: const InputDecoration(
                               labelText: 'Store / Branch Code',
                               prefixIcon: Icon(Icons.store_rounded),
+                              hintText: 'e.g. RCM, DOF, MUBD',
+                            ),
+                            textCapitalization: TextCapitalization.characters,
+                            validator: (v) =>
+                                v!.isEmpty ? 'Required' : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _emailCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Email',
+                              prefixIcon: Icon(Icons.email_outlined),
+                            ),
+                            keyboardType: TextInputType.emailAddress,
+                            autocorrect: false,
+                            validator: (v) =>
+                                v!.isEmpty ? 'Required' : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _passCtrl,
+                            obscureText: _obscure,
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                icon: Icon(_obscure
+                                    ? Icons.visibility_off
+                                    : Icons.visibility),
+                                onPressed: () =>
+                                    setState(() => _obscure = !_obscure),
+                              ),
+                            ),
+                            validator: (v) =>
+                                v!.isEmpty ? 'Required' : null,
+                          ),
+                          const SizedBox(height: 28),
+                          SizedBox(
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: auth.loading ? null : _submit,
+                              child: auth.loading
+                                  ? const SizedBox(
+                                      height: 22,
+                                      width: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text('Sign In'),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: auth.loading
+                                ? null
+                                : () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            const SuperAdminLoginScreen(),
+                                      ),
+                                    ),
+                            child: const Text(
+                              'Sign in as Super Admin',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
