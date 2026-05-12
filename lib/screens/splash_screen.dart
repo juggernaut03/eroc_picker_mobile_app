@@ -118,3 +118,182 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             ),
 
             // Center content
+            Center(
+              child: AnimatedBuilder(
+                animation: _ctrl,
+                builder: (_, __) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Logo
+                    FadeTransition(
+                      opacity: _fade,
+                      child: ScaleTransition(
+                        scale: _scale,
+                        child: Container(
+                          width: 110,
+                          height: 110,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(32),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.25),
+                                blurRadius: 40,
+                                offset: const Offset(0, 16),
+                              ),
+                            ],
+                          ),
+                          child: Image.asset(
+                            AppConstants.appLogo,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // App name
+                    FadeTransition(
+                      opacity: _fade,
+                      child: const Text(
+                        AppConstants.appName,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 34,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Tagline
+                    FadeTransition(
+                      opacity: _taglineFade,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                        ),
+                        child: const Text(
+                          AppConstants.appTagline,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Bottom loading dots
+            Positioned(
+              bottom: 60,
+              left: 0,
+              right: 0,
+              child: AnimatedBuilder(
+                animation: _taglineFade,
+                builder: (_, __) => Opacity(
+                  opacity: _taglineFade.value,
+                  child: const _LoadingDots(),
+                ),
+              ),
+            ),
+
+            // Version tag bottom
+            Positioned(
+              bottom: 28,
+              left: 0,
+              right: 0,
+              child: AnimatedBuilder(
+                animation: _taglineFade,
+                builder: (_, __) => Opacity(
+                  opacity: _taglineFade.value,
+                  child: const Text(
+                    AppConstants.appVersion,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Blob extends StatelessWidget {
+  final double size;
+  final Color color;
+  const _Blob({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
+}
+
+class _LoadingDots extends StatefulWidget {
+  const _LoadingDots();
+
+  @override
+  State<_LoadingDots> createState() => _LoadingDotsState();
+}
+
+class _LoadingDotsState extends State<_LoadingDots> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(3, (i) {
+            final delay = i / 3;
+            final t = ((_ctrl.value - delay) % 1.0 + 1.0) % 1.0;
+            final opacity = t < 0.5 ? t * 2 : (1.0 - t) * 2;
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.3 + opacity * 0.7),
+                shape: BoxShape.circle,
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+}
