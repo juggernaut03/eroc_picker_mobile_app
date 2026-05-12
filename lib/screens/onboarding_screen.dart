@@ -178,3 +178,182 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       const SizedBox(height: 28),
 
                       // Buttons
+                      if (isLast)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: _done,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: page.gradientColors[0],
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18)),
+                              textStyle: const TextStyle(
+                                  fontSize: 17, fontWeight: FontWeight.w800),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('Get Started'),
+                                SizedBox(width: 8),
+                                Icon(Icons.arrow_forward_rounded, size: 20),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Back
+                            AnimatedOpacity(
+                              duration: const Duration(milliseconds: 200),
+                              opacity: _current > 0 ? 1.0 : 0.0,
+                              child: GestureDetector(
+                                onTap: _current > 0 ? _prev : null,
+                                child: Container(
+                                  width: 52,
+                                  height: 52,
+                                  decoration: BoxDecoration(
+                                    color: page.gradientColors[0]
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: page.gradientColors[0]
+                                          .withValues(alpha: 0.25),
+                                    ),
+                                  ),
+                                  child: Icon(Icons.arrow_back_rounded,
+                                      color: page.gradientColors[0]),
+                                ),
+                              ),
+                            ),
+
+                            // Next
+                            GestureDetector(
+                              onTap: _next,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                width: 160,
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: page.gradientColors,
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: page.gradientColors[0]
+                                          .withValues(alpha: 0.4),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text('Next',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w800)),
+                                    SizedBox(width: 6),
+                                    Icon(Icons.arrow_forward_rounded,
+                                        color: Colors.white, size: 18),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Single page content ──────────────────────────────────────────────────────
+class _PageContent extends StatelessWidget {
+  final _OnboardData data;
+  const _PageContent({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    return Column(
+      children: [
+        // Image in gradient area
+        SizedBox(
+          height: size.height * 0.33,
+          child: Center(
+            child: Image.asset(
+              data.assetPath,
+              height: size.height * 0.27,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+        ),
+
+        // Text
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(32, 72, 32, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  data.title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  data.subtitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF64748B),
+                    height: 1.65,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+class _Circle extends StatelessWidget {
+  final double size, opacity;
+  const _Circle({required this.size, required this.opacity});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: opacity),
+          shape: BoxShape.circle,
+        ),
+      );
+}
