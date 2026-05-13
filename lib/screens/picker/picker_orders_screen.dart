@@ -248,3 +248,353 @@ class _PickerHeroHeader extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
+                  _PickerDateChip(
+                    selected: selectedMonth,
+                    onPrev: onPrevMonth,
+                    onNext: onNextMonth,
+                    onPick: onPickMonth,
+                  ),
+                  IconButton(
+                    onPressed: onRefresh,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    padding: const EdgeInsets.all(6),
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.refresh_rounded, color: Colors.white70, size: 18),
+                  ),
+                  IconButton(
+                    onPressed: () async {
+                      await context.read<AuthProvider>().logout();
+                      if (context.mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          (route) => false,
+                        );
+                      }
+                    },
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    padding: const EdgeInsets.all(6),
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.logout_rounded, color: Colors.white70, size: 18),
+                  ),
+                ],
+              ),
+            ),
+
+            // Big metric
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '$total',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                          height: 1,
+                          letterSpacing: -1,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'My assigned orders',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      if (inProgress > 0) ...[
+                        const SizedBox(width: 6),
+                        _LiveBadge(count: inProgress, label: 'picking'),
+                      ],
+                      if (loading)
+                        const Padding(
+                          padding: EdgeInsets.only(left: 8, bottom: 4),
+                          child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // Availability strip — picker self-toggles is_active
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _AvailabilityStrip(
+                isActive: isActive,
+                saving: savingAvailability,
+                onChanged: onToggleAvailability,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // KPI cards
+            SizedBox(
+              height: 64,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                children: [
+                  _KpiCard(
+                    label: 'Assigned',
+                    value: '$assigned',
+                    icon: Icons.assignment_rounded,
+                    iconColor: const Color(0xFFFBBF24),
+                    delta: '',
+                  ),
+                  _KpiCard(
+                    label: 'Picking',
+                    value: '$inProgress',
+                    icon: Icons.local_shipping_rounded,
+                    iconColor: const Color(0xFF34D399),
+                    delta: '',
+                  ),
+                  _KpiCard(
+                    label: 'Completed',
+                    value: '$completed',
+                    icon: Icons.check_circle_rounded,
+                    iconColor: const Color(0xFF60A5FA),
+                    delta: total > 0 ? '+${(completed / total * 100).round()}%' : '',
+                    positive: true,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PickerAvatar extends StatelessWidget {
+  final String name;
+  const _PickerAvatar({required this.name});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [Color(0xFF38BDF8), Color(0xFF0EA5E9)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: Colors.white, width: 2),
+        ),
+        child: Center(
+          child: Text(
+            name.isNotEmpty ? name[0].toUpperCase() : 'P',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
+          ),
+        ),
+      );
+}
+
+class _AvailabilityStrip extends StatelessWidget {
+  final bool isActive;
+  final bool saving;
+  final ValueChanged<bool> onChanged;
+
+  const _AvailabilityStrip({
+    required this.isActive,
+    required this.saving,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = isActive ? const Color(0xFF34D399) : const Color(0xFFFBBF24);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle, boxShadow: [
+              BoxShadow(color: accent.withValues(alpha: 0.6), blurRadius: 6),
+            ]),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              isActive ? 'Available for new orders' : 'Paused — not accepting new orders',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (saving)
+            const SizedBox(
+              width: 18, height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            )
+          else
+            Transform.scale(
+              scale: 0.8,
+              child: Switch.adaptive(
+                value: isActive,
+                activeColor: const Color(0xFF34D399),
+                onChanged: onChanged,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PickerDateChip extends StatelessWidget {
+  final DateTime selected;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+  final VoidCallback onPick;
+
+  const _PickerDateChip({
+    required this.selected,
+    required this.onPrev,
+    required this.onNext,
+    required this.onPick,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    final label = '${months[selected.month - 1]} ${selected.year.toString().substring(2)}';
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            onTap: onPrev,
+            borderRadius: const BorderRadius.horizontal(left: Radius.circular(20)),
+            child: const Padding(
+              padding: EdgeInsets.fromLTRB(8, 5, 2, 5),
+              child: Icon(Icons.chevron_left, color: Colors.white, size: 14),
+            ),
+          ),
+          InkWell(
+            onTap: onPick,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+              child: Text(
+                label,
+                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: onNext,
+            borderRadius: const BorderRadius.horizontal(right: Radius.circular(20)),
+            child: const Padding(
+              padding: EdgeInsets.fromLTRB(2, 5, 8, 5),
+              child: Icon(Icons.chevron_right, color: Colors.white, size: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveBadge extends StatelessWidget {
+  final int count;
+  final String label;
+  const _LiveBadge({required this.count, required this.label});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF34D399).withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF34D399).withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF34D399), shape: BoxShape.circle)),
+            const SizedBox(width: 5),
+            Text('$count $label', style: const TextStyle(color: Color(0xFF34D399), fontSize: 11, fontWeight: FontWeight.w700)),
+          ],
+        ),
+      );
+}
+
+class _KpiCard extends StatelessWidget {
+  final String label, value, delta;
+  final IconData icon;
+  final Color iconColor;
+  final bool positive;
+
+  const _KpiCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.iconColor,
+    required this.delta,
+    this.positive = true,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 120,
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 24, height: 24,
+              decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(7)),
+              child: Icon(icon, color: iconColor, size: 14),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(value, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, height: 1.1)),
+                  Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 10, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            if (delta.isNotEmpty)
+              Text(delta, style: TextStyle(color: positive ? const Color(0xFF34D399) : const Color(0xFFF87171), fontSize: 9, fontWeight: FontWeight.w700)),
+          ],
+        ),
+      );
+}
