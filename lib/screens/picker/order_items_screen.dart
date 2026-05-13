@@ -1348,3 +1348,377 @@ class _ItemActionSheetState extends State<_ItemActionSheet> {
                 bottom: MediaQuery.of(context).viewInsets.bottom + 24,
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Product image + close button row
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Product image
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: ProductImage(
+                          url: widget.item.pcodeImg,
+                          width: 80,
+                          height: 80,
+                          fallback: Container(
+                            width: 80, height: 80,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF4F3FA),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.inventory_2_outlined, size: 32, color: Color(0xFFCBD5E1)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Item name + meta
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(text: widget.item.itemName ?? 'Item'),
+                                  if (widget.item.pCode != null && widget.item.pCode!.isNotEmpty)
+                                    TextSpan(text: ' (${widget.item.pCode})'),
+                                ],
+                              ),
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            if (widget.item.barcode != null)
+                              Text(widget.item.barcode!,
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontFamily: 'monospace')),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF4F3FA),
+                                    borderRadius: BorderRadius.circular(7),
+                                  ),
+                                  child: Text('Ordered: $max',
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                                ),
+                                if (widget.item.packSize != null)
+                                  _MetaBadge(widget.item.packSize!, color: const Color(0xFF64748B)),
+                                if (widget.item.productOfferPrice != null)
+                                  _MetaBadge('₹${widget.item.productOfferPrice!.toStringAsFixed(0)}', color: const Color(0xFF1565C0)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8)),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Quantity picker — full range 0..max
+                  const Text('Picked Quantity',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF4F3FA),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        _QtyButton(
+                          icon: Icons.remove_rounded,
+                          enabled: _qty > 0,
+                          onTap: () => _changeQty(-1),
+                        ),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                '$_qty',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                              ),
+                              Text(
+                                'of $max',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _QtyButton(
+                          icon: Icons.add_rounded,
+                          enabled: _qty < max,
+                          onTap: () => _changeQty(1),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Issue breakdown for the missing units (shown when partial / nothing picked)
+                  if (_qty < max) ...[
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFFD97706)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            _unallocated > 0
+                                ? '$_unallocated of ${max - _qty} unit${(max - _qty) == 1 ? '' : 's'} need a reason'
+                                : 'All ${max - _qty} unit${(max - _qty) == 1 ? '' : 's'} have a reason',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: _unallocated > 0 ? const Color(0xFF92400E) : const Color(0xFF16A34A),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Column(
+                      children: _issueTypes.map((t) {
+                        final (value, label, icon, color) = t;
+                        final q = _issueQty[value] ?? 0;
+                        final active = q > 0;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+                          decoration: BoxDecoration(
+                            color: active ? color.withValues(alpha: 0.08) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: active ? color.withValues(alpha: 0.5) : const Color(0xFFE2E8F0),
+                              width: active ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(icon, size: 20, color: active ? color : const Color(0xFF94A3B8)),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  label,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: active ? color : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                              _IssueStepper(
+                                value: q,
+                                color: color,
+                                onMinus: q > 0 ? () => _bumpIssue(value, -1) : null,
+                                onPlus: _unallocated > 0 ? () => _bumpIssue(value, 1) : null,
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+
+                  const SizedBox(height: 20),
+
+                  // Remark — required when there's an issue, optional otherwise
+                  Text(
+                    _qty < max ? 'Remark for manager' : 'Remark (optional)',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _remarkCtrl,
+                    decoration: InputDecoration(
+                      hintText: _qty < max
+                          ? 'Details about the issue (e.g. batch expired Jan, packaging torn)'
+                          : 'e.g. Item on back shelf, different batch',
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(14)),
+                        borderSide: BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(14)),
+                        borderSide: BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      focusedBorder: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(14)),
+                        borderSide: BorderSide(color: Color(0xFF1565C0), width: 2),
+                      ),
+                    ),
+                    maxLines: 2,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Save
+                  SizedBox(
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: _loading ? null : _save,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1565C0),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                      ),
+                      child: _loading
+                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Text('Save Item'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Image fallback — shown when no image URL or image fails to load
+// ─────────────────────────────────────────────────────────────────────────────
+class _ImageFallback extends StatelessWidget {
+  final Color accent;
+  final String statusStr;
+  final int index;
+  final IconData statusIcon;
+
+  const _ImageFallback({
+    required this.accent,
+    required this.statusStr,
+    required this.index,
+    required this.statusIcon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDone = statusStr != 'pending';
+    return SizedBox(
+      width: 72,
+      child: Container(
+        color: isDone ? accent.withValues(alpha: 0.08) : const Color(0xFFF4F3FA),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isDone ? statusIcon : Icons.inventory_2_outlined,
+              size: 26,
+              color: isDone ? accent : const Color(0xFFCBD5E1),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Text('$index', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF64748B))),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Small metadata badge (pack size, price)
+// ─────────────────────────────────────────────────────────────────────────────
+class _MetaBadge extends StatelessWidget {
+  final String text;
+  final Color color;
+  const _MetaBadge(this.text, {required this.color});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(7),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Text(text, style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.w600)),
+      );
+}
+
+class _QtyButton extends StatelessWidget {
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+  const _QtyButton({required this.icon, required this.enabled, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: enabled ? onTap : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 48, height: 48,
+          decoration: BoxDecoration(
+            color: enabled ? const Color(0xFF1565C0) : const Color(0xFFE2E8F0),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: enabled ? Colors.white : const Color(0xFF94A3B8), size: 22),
+        ),
+      );
+}
+
+class _IssueStepper extends StatelessWidget {
+  final int value;
+  final Color color;
+  final VoidCallback? onMinus;
+  final VoidCallback? onPlus;
+  const _IssueStepper({required this.value, required this.color, this.onMinus, this.onPlus});
+
+  Widget _btn(IconData icon, VoidCallback? onTap) {
+    final enabled = onTap != null;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 32, height: 32,
+        decoration: BoxDecoration(
+          color: enabled ? color.withValues(alpha: 0.15) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, size: 18, color: enabled ? color : const Color(0xFFCBD5E1)),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _btn(Icons.remove_rounded, onMinus),
+          SizedBox(
+            width: 36,
+            child: Text(
+              '$value',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: value > 0 ? color : const Color(0xFF94A3B8),
+              ),
+            ),
+          ),
+          _btn(Icons.add_rounded, onPlus),
+        ],
+      );
+}
