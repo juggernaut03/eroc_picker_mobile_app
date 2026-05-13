@@ -898,3 +898,453 @@ class _ItemCard extends StatelessWidget {
                         ],
                       ),
                       if (item.barcode != null) ...[
+                        const SizedBox(height: 3),
+                        Text(item.barcode!, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFFCBD5E1), fontFamily: 'monospace')),
+                      ],
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          _QtyBadge(label: 'Quantity', value: item.orderedQuantity, color: const Color(0xFF64748B)),
+                          if (ps != null && ps.pickedQuantity > 0)
+                            _QtyBadge(label: 'Got', value: ps.pickedQuantity, color: const Color(0xFF16A34A)),
+                        ],
+                      ),
+                      if (ps?.remark != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.format_quote_rounded, size: 16, color: Color(0xFFD97706)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  ps!.remark!,
+                                  style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Color(0xFF92400E)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              if (canAct)
+                Padding(
+                  padding: const EdgeInsets.only(right: 14),
+                  child: Container(
+                    width: 38, height: 38,
+                    decoration: BoxDecoration(
+                      color: isDone ? accent.withValues(alpha: 0.1) : const Color(0xFFF4F3FA),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      isDone ? Icons.edit_rounded : Icons.chevron_right_rounded,
+                      size: 22,
+                      color: isDone ? accent : const Color(0xFF94A3B8),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ItemStatusChip extends StatelessWidget {
+  final String status;
+  final String? labelOverride;
+  final Color? colorOverride;
+  const _ItemStatusChip(this.status, {this.labelOverride, this.colorOverride});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = colorOverride ?? AppTheme.itemStatusColor(status);
+    final label = labelOverride ?? AppTheme.itemStatusLabel(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(label, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w700)),
+    );
+  }
+}
+
+class _QtyBadge extends StatelessWidget {
+  final String label;
+  final int value;
+  final Color color;
+  const _QtyBadge({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text('$label: $value', style: TextStyle(fontSize: 15, color: color, fontWeight: FontWeight.w700)),
+      );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bottom action bar
+// ─────────────────────────────────────────────────────────────────────────────
+class _BottomBar extends StatelessWidget {
+  final String status;
+  final int pendingCount;
+  final VoidCallback onStart, onComplete, onReject;
+
+  const _BottomBar({
+    required this.status,
+    required this.pendingCount,
+    required this.onStart,
+    required this.onComplete,
+    required this.onReject,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (status != 'assigned' && status != 'in_progress') return const SizedBox.shrink();
+
+    final allActioned = pendingCount == 0;
+
+    return Container(
+      color: Colors.white,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (status == 'in_progress' && !allActioned) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8E1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFFD97706)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '$pendingCount item${pendingCount == 1 ? '' : 's'} still pending — action all items to complete',
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF92400E), fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              Row(
+                children: [
+                  // Reject button — compact outlined
+                  Container(
+                    width: 52, height: 52,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFF87171).withValues(alpha: 0.5)),
+                      color: const Color(0xFFFEF2F2),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.cancel_rounded, color: Color(0xFFDC2626), size: 22),
+                      onPressed: onReject,
+                      tooltip: 'Reject order',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Primary action
+                  Expanded(
+                    child: SizedBox(
+                      height: 52,
+                      child: status == 'assigned'
+                          ? ElevatedButton.icon(
+                              icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                              label: const Text('Start Picking'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1565C0),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                              ),
+                              onPressed: onStart,
+                            )
+                          : ElevatedButton.icon(
+                              icon: const Icon(Icons.check_rounded, size: 20),
+                              label: const Text('Complete Order'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF16A34A),
+                                disabledBackgroundColor: const Color(0xFFE5E7EB),
+                                disabledForegroundColor: const Color(0xFF9CA3AF),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                              ),
+                              onPressed: allActioned ? onComplete : null,
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Item action bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+class _ItemActionSheet extends StatefulWidget {
+  final OrderItem item;
+  final String assignmentId;
+  final VoidCallback onDone;
+
+  const _ItemActionSheet({required this.item, required this.assignmentId, required this.onDone});
+
+  @override
+  State<_ItemActionSheet> createState() => _ItemActionSheetState();
+}
+
+class _ItemActionSheetState extends State<_ItemActionSheet> {
+  late int _qty;
+  // Per-issue-type quantities for the unpicked units
+  final Map<String, int> _issueQty = {'not_available': 0, 'expired': 0, 'damaged': 0};
+  final _remarkCtrl = TextEditingController();
+  bool _loading = false;
+
+  // Issue types for the unpicked units
+  final _issueTypes = [
+    ('not_available', 'Not Available', Icons.remove_circle_rounded, Color(0xFFDC2626)),
+    ('expired', 'Expired', Icons.access_time_rounded, Color(0xFFD97706)),
+    ('damaged', 'Damaged', Icons.broken_image_rounded, Color(0xFFBE185D)),
+  ];
+
+  static const _labelToType = {
+    'Not Available': 'not_available',
+    'Expired': 'expired',
+    'Damaged': 'damaged',
+  };
+
+  int get _missing => widget.item.orderedQuantity - _qty;
+  int get _allocated => _issueQty.values.fold(0, (a, b) => a + b);
+  int get _unallocated => _missing - _allocated;
+
+  @override
+  void initState() {
+    super.initState();
+    final max = widget.item.orderedQuantity;
+    final cur = widget.item.pickerStatus;
+    if (cur != null) {
+      if (cur.pickedStatus == 'picked') {
+        _qty = cur.pickedQuantity.clamp(0, max);
+      } else if (cur.pickedStatus == 'pending') {
+        _qty = max;
+      } else {
+        // Full issue (legacy single-reason save)
+        _qty = 0;
+        if (_issueQty.containsKey(cur.pickedStatus)) {
+          _issueQty[cur.pickedStatus] = max;
+        }
+      }
+      _parseRemark(cur.remark ?? '');
+      // Auto-fill unallocated shortfall to the first issue type so the form is valid
+      if (_qty < max && _allocated == 0) {
+        _issueQty['not_available'] = max - _qty;
+      }
+    } else {
+      _qty = max;
+    }
+  }
+
+  // Parse remarks of form: "Not Available: 1 unit, Damaged: 2 units — picker notes"
+  // or single-reason: "Expired: 3 units — notes"
+  void _parseRemark(String raw) {
+    if (raw.isEmpty) return;
+
+    String breakdown = raw;
+    String notes = '';
+    final emIdx = raw.indexOf(' — ');
+    if (emIdx >= 0) {
+      breakdown = raw.substring(0, emIdx);
+      notes = raw.substring(emIdx + 3).trim();
+    }
+
+    final entryRe = RegExp(r'(Not Available|Expired|Damaged):\s*(\d+)\s*unit');
+    final matches = entryRe.allMatches(breakdown).toList();
+    if (matches.isEmpty) {
+      // No structured breakdown — treat the whole thing as the picker's note
+      _remarkCtrl.text = raw;
+      return;
+    }
+    for (final m in matches) {
+      final type = _labelToType[m.group(1)!];
+      final n = int.tryParse(m.group(2)!);
+      if (type != null && n != null) _issueQty[type] = n;
+    }
+    _remarkCtrl.text = notes;
+  }
+
+  @override
+  void dispose() {
+    _remarkCtrl.dispose();
+    super.dispose();
+  }
+
+  String _issueLabel(String type) =>
+      _issueTypes.firstWhere((t) => t.$1 == type).$2;
+
+  void _changeQty(int delta) {
+    final max = widget.item.orderedQuantity;
+    final next = (_qty + delta).clamp(0, max);
+    setState(() {
+      _qty = next;
+      // Shortfall shrunk — trim allocations from the highest types down
+      var over = _allocated - _missing;
+      if (over > 0) {
+        for (final t in _issueTypes.reversed) {
+          if (over <= 0) break;
+          final q = _issueQty[t.$1] ?? 0;
+          if (q <= 0) continue;
+          final take = q < over ? q : over;
+          _issueQty[t.$1] = q - take;
+          over -= take;
+        }
+      }
+    });
+  }
+
+  void _bumpIssue(String type, int delta) {
+    final next = (_issueQty[type] ?? 0) + delta;
+    if (next < 0) return;
+    if (delta > 0 && _unallocated <= 0) return;
+    setState(() => _issueQty[type] = next);
+  }
+
+  String _buildBreakdown() {
+    final parts = <String>[];
+    for (final t in _issueTypes) {
+      final q = _issueQty[t.$1] ?? 0;
+      if (q > 0) parts.add('${t.$2}: $q unit${q == 1 ? '' : 's'}');
+    }
+    return parts.join(', ');
+  }
+
+  Future<void> _save() async {
+    final max = widget.item.orderedQuantity;
+    final notes = _remarkCtrl.text.trim();
+
+    String status;
+    int savedQty;
+    String? savedRemark;
+
+    if (_qty >= max) {
+      // Full pick — no shortfall, ignore any issue allocations
+      status = 'picked';
+      savedQty = max;
+      savedRemark = notes.isEmpty ? null : notes;
+    } else {
+      // Must allocate every missing unit to a reason
+      if (_unallocated != 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_unallocated > 0
+                ? '$_unallocated unit${_unallocated == 1 ? '' : 's'} still need a reason'
+                : 'Issue quantities exceed the shortfall'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+        return;
+      }
+      final breakdown = _buildBreakdown();
+      savedRemark = notes.isEmpty ? breakdown : '$breakdown — $notes';
+
+      if (_qty == 0) {
+        // Nothing picked — surface as a real failure status (N/A / Expired /
+        // Damaged) so the card never shows a green "Picked" badge for 0 units.
+        // Use the largest-count reason; the full per-reason breakdown stays in
+        // the remark.
+        final usedTypes = _issueQty.entries.where((e) => e.value > 0).toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        status = usedTypes.isNotEmpty ? usedTypes.first.key : 'not_available';
+        savedQty = 0;
+      } else {
+        // Partial pick — at least one unit picked, rest are issues.
+        status = 'picked';
+        savedQty = _qty;
+      }
+    }
+
+    setState(() => _loading = true);
+    try {
+      await PickerService.updateItemStatus(
+        assignmentId: widget.assignmentId,
+        orderItemId: widget.item.id,
+        pickedStatus: status,
+        pickedQuantity: savedQty,
+        remark: savedRemark,
+      );
+      widget.onDone();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error),
+        );
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final max = widget.item.orderedQuantity;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          const SizedBox(height: 12),
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          // Scrollable body
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 20, right: 20, top: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: Column(
