@@ -178,3 +178,179 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       body: SafeArea(
         child: Stack(
           children: [
+            // Camera
+            Positioned.fill(
+              child: MobileScanner(
+                controller: _controller,
+                onDetect: _onDetect,
+                errorBuilder: (context, error, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Camera error: ${error.errorDetails?.message ?? error.errorCode.name}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Reticle
+            Center(
+              child: Container(
+                width: 260,
+                height: 160,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+
+            // Top bar
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.7),
+                      Colors.black.withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      onPressed: () => Navigator.pop(context, _anyChange),
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'Scan barcode',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Toggle torch',
+                      icon: const Icon(Icons.flash_on_rounded, color: Colors.white),
+                      onPressed: () => _controller.toggleTorch(),
+                    ),
+                    IconButton(
+                      tooltip: 'Switch camera',
+                      icon: const Icon(Icons.cameraswitch_rounded, color: Colors.white),
+                      onPressed: () => _controller.switchCamera(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Result banner
+            if (result != null)
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 88,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: Container(
+                    key: ValueKey('${result.message}_${result.picked}_${result.itemName}'),
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                    decoration: BoxDecoration(
+                      color: _bannerColor(result.kind),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(_bannerIcon(result.kind), color: Colors.white, size: 24),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (result.itemName != null)
+                                Text(
+                                  result.itemName!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              Text(
+                                result.picked != null && result.ordered != null
+                                    ? '${result.message} — ${result.picked}/${result.ordered}'
+                                    : result.message,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.95),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_busy)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 8),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+            // Bottom Done button
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: SizedBox(
+                height: 48,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Done',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () => Navigator.pop(context, _anyChange),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
