@@ -298,3 +298,303 @@ class _HeroHeader extends StatelessWidget {
                 ],
               ),
             ),
+
+            const SizedBox(height: 10),
+
+            // KPI cards row — horizontal scroll
+            SizedBox(
+              height: 64,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                children: [
+                  _KpiCard(
+                    label: 'Pending',
+                    value: '$pending',
+                    delta: '',
+                    icon: Icons.schedule_rounded,
+                    iconColor: const Color(0xFFFBBF24),
+                    bg: Colors.white.withValues(alpha: 0.15),
+                  ),
+                  _KpiCard(
+                    label: 'In Progress',
+                    value: '$inProgress',
+                    delta: '',
+                    icon: Icons.local_shipping_rounded,
+                    iconColor: const Color(0xFF34D399),
+                    bg: Colors.white.withValues(alpha: 0.15),
+                  ),
+                  _KpiCard(
+                    label: 'Completed',
+                    value: '$completed',
+                    delta: total > 0 ? '+${(completed / total * 100).round()}%' : '',
+                    icon: Icons.check_circle_rounded,
+                    iconColor: const Color(0xFF60A5FA),
+                    bg: Colors.white.withValues(alpha: 0.15),
+                    positive: true,
+                  ),
+                  _KpiCard(
+                    label: 'Assigned',
+                    value: '$assigned',
+                    delta: '',
+                    icon: Icons.assignment_ind_rounded,
+                    iconColor: const Color(0xFFC084FC),
+                    bg: Colors.white.withValues(alpha: 0.15),
+                  ),
+                  _KpiCard(
+                    label: 'Rejected',
+                    value: '$rejected',
+                    delta: rejected > 0 ? '-${(rejected / total * 100).round()}%' : '',
+                    icon: Icons.cancel_rounded,
+                    iconColor: const Color(0xFFF87171),
+                    bg: Colors.white.withValues(alpha: 0.15),
+                    positive: false,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BlobAvatar extends StatelessWidget {
+  final String name;
+  const _BlobAvatar({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE879F9), Color(0xFF9333EA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+      child: Center(
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : 'M',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
+        ),
+      ),
+    );
+  }
+}
+
+class _DateChip extends StatelessWidget {
+  final DateTime selected;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+  final VoidCallback onPick;
+
+  const _DateChip({
+    required this.selected,
+    required this.onPrev,
+    required this.onNext,
+    required this.onPick,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    final label = '${months[selected.month - 1]} ${selected.year.toString().substring(2)}';
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            onTap: onPrev,
+            borderRadius: const BorderRadius.horizontal(left: Radius.circular(20)),
+            child: const Padding(
+              padding: EdgeInsets.fromLTRB(8, 5, 2, 5),
+              child: Icon(Icons.chevron_left, color: Colors.white, size: 14),
+            ),
+          ),
+          InkWell(
+            onTap: onPick,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+              child: Text(
+                label,
+                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: onNext,
+            borderRadius: const BorderRadius.horizontal(right: Radius.circular(20)),
+            child: const Padding(
+              padding: EdgeInsets.fromLTRB(2, 5, 8, 5),
+              child: Icon(Icons.chevron_right, color: Colors.white, size: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveBadge extends StatelessWidget {
+  final int count;
+  const _LiveBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF34D399).withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF34D399).withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF34D399), shape: BoxShape.circle)),
+          const SizedBox(width: 5),
+          Text('$count active', style: const TextStyle(color: Color(0xFF34D399), fontSize: 11, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+}
+
+class _KpiCard extends StatelessWidget {
+  final String label, value, delta;
+  final IconData icon;
+  final Color iconColor, bg;
+  final bool positive;
+
+  const _KpiCard({
+    required this.label,
+    required this.value,
+    required this.delta,
+    required this.icon,
+    required this.iconColor,
+    required this.bg,
+    this.positive = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 120,
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Icon(icon, color: iconColor, size: 14),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(value,
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, height: 1.1)),
+                Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 10, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
+          if (delta.isNotEmpty)
+            Text(
+              delta,
+              style: TextStyle(
+                color: positive ? const Color(0xFF34D399) : const Color(0xFFF87171),
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Filter bar — pill chips
+// ─────────────────────────────────────────────────────────────────────────────
+class _FilterBar extends StatelessWidget {
+  final List<String?> statuses;
+  final List<String> labels;
+  final String? selected;
+  final Map<String?, int> counts;
+  final ValueChanged<String?> onSelect;
+
+  const _FilterBar({
+    required this.statuses,
+    required this.labels,
+    required this.selected,
+    required this.counts,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 18, 0, 6),
+      child: SizedBox(
+        height: 38,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: statuses.length,
+          itemBuilder: (_, i) {
+            final s = statuses[i];
+            final isSelected = selected == s;
+            final count = counts[s] ?? 0;
+            return GestureDetector(
+              onTap: () => onSelect(s),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFF6C3CE1) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: isSelected
+                      ? [BoxShadow(color: const Color(0xFF6C3CE1).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3))]
+                      : [],
+                  border: Border.all(
+                    color: isSelected ? const Color(0xFF6C3CE1) : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      labels[i],
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : const Color(0xFF64748B),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
