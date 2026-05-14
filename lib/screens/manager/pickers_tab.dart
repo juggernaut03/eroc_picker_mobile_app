@@ -158,3 +158,163 @@ class _StatBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 6),
+          Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color)),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 12, color: color.withValues(alpha: 0.8), fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+}
+
+class _PickerCard extends StatelessWidget {
+  final AssignedUser picker;
+
+  const _PickerCard({required this.picker});
+
+  Color get _loadColor {
+    if (picker.activeOrders == 0) return AppTheme.textMuted;
+    if (picker.activeOrders <= 2) return AppTheme.success;
+    if (picker.activeOrders <= 4) return AppTheme.warning;
+    return AppTheme.error;
+  }
+
+  String get _loadLabel {
+    if (picker.activeOrders == 0) return 'Free';
+    if (picker.activeOrders <= 2) return 'Low';
+    if (picker.activeOrders <= 4) return 'Medium';
+    return 'High';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final initials = picker.name.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase();
+    final color = _loadColor;
+    final isActive = picker.isActive ?? true;
+    final cardOpacity = isActive ? 1.0 : 0.7;
+
+    return Opacity(
+      opacity: cardOpacity,
+      child: Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => PickerDetailScreen(picker: picker)),
+        ),
+        child: Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isActive ? AppTheme.border : AppTheme.warning.withValues(alpha: 0.4),
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isActive
+                    ? [AppTheme.primary.withValues(alpha: 0.8), AppTheme.primary]
+                    : [AppTheme.textMuted.withValues(alpha: 0.7), AppTheme.textMuted],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Center(
+              child: Text(
+                initials.isEmpty ? '?' : initials,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        picker.name,
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (!isActive) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.warning.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppTheme.warning.withValues(alpha: 0.4)),
+                        ),
+                        child: const Text(
+                          'Paused',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.warning),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(picker.email, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                if (picker.phone != null)
+                  Text(picker.phone!, style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: color.withValues(alpha: 0.25)),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '${picker.activeOrders}',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: color),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(_loadLabel, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ],
+      ),
+        ),
+      ),
+      ),
+    );
+  }
+}
