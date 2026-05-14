@@ -598,3 +598,258 @@ class _FilterBar extends StatelessWidget {
                         color: isSelected ? Colors.white : const Color(0xFF64748B),
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (count > 0) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.white.withValues(alpha: 0.25) : const Color(0xFF6C3CE1).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '$count',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: isSelected ? Colors.white : const Color(0xFF6C3CE1),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Order list
+// ─────────────────────────────────────────────────────────────────────────────
+class _OrderList extends StatelessWidget {
+  final List<Order> orders;
+  final VoidCallback onRefresh;
+
+  const _OrderList({required this.orders, required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    if (orders.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4)),
+              ]),
+              child: const Icon(Icons.inbox_rounded, size: 36, color: Color(0xFF94A3B8)),
+            ),
+            const SizedBox(height: 16),
+            const Text('No orders here', style: TextStyle(color: Color(0xFF64748B), fontSize: 15, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            const Text('Pull down to refresh', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () async => onRefresh(),
+      color: const Color(0xFF6C3CE1),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final columns = Responsive.columnsFor(width);
+          final maxContent = Responsive.maxContentWidth(width);
+
+          if (columns == 1) {
+            return ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+              itemCount: orders.length,
+              itemBuilder: (ctx, i) => Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: _OrderCard(order: orders[i], onRefresh: onRefresh),
+              ),
+            );
+          }
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxContent),
+              child: GridView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  mainAxisExtent: 170,
+                ),
+                itemCount: orders.length,
+                itemBuilder: (ctx, i) =>
+                    _OrderCard(order: orders[i], onRefresh: onRefresh),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Order card — inspired by the reference's grocery row style
+// ─────────────────────────────────────────────────────────────────────────────
+class _OrderCard extends StatelessWidget {
+  final Order order;
+  final VoidCallback onRefresh;
+
+  const _OrderCard({required this.order, required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    final assignment = order.currentAssignment;
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => OrderDetailScreen(order: order, onRefresh: onRefresh)),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3)),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Content
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Order #${order.ordersIdorders}',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F172A)),
+                            ),
+                          ),
+                          StatusBadge(order.status, small: true),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 6,
+                        children: [
+                          _MetaChip(Icons.store_rounded, order.storeCode),
+                          _MetaChip(Icons.shopping_bag_rounded, '${order.totalItems} items'),
+                          _MetaChip(Icons.currency_rupee_rounded, order.totalAmount.toStringAsFixed(0)),
+                          if (order.orderDate != null)
+                            _MetaChip(Icons.calendar_today_rounded, formatDate(order.orderDate)),
+                        ],
+                      ),
+                      if (assignment != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8F5FF),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFF6C3CE1).withValues(alpha: 0.15)),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 10,
+                                backgroundColor: const Color(0xFF6C3CE1),
+                                child: Text(
+                                  (assignment.assignedTo?.name ?? 'P')[0].toUpperCase(),
+                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  assignment.assignedTo?.name ?? 'Assigned',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6C3CE1)),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              StatusBadge(assignment.status, small: true),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              // Arrow
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F3FA),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF94A3B8)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _MetaChip(this.icon, this.label);
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFF94A3B8)),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      );
+}
