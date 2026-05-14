@@ -228,3 +228,240 @@ class _ProfileHeader extends StatelessWidget {
                     ),
                   ),
                 ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      email,
+                      style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.85)),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            role == 'store_manager' ? 'Manager' : 'Picker',
+                            style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? const Color(0xFF34D399).withValues(alpha: 0.3)
+                                : AppTheme.error.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            isActive ? 'Active' : 'Inactive',
+                            style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _MetricTile(
+                  label: 'Active Orders',
+                  value: '$activeOrders',
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MetricTile(
+                  label: 'Load',
+                  value: loadLabel,
+                  valueColor: loadColor,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricTile extends StatelessWidget {
+  final String label, value;
+  final Color? valueColor;
+  const _MetricTile({required this.label, required this.value, this.valueColor});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          children: [
+            Text(value,
+                style: TextStyle(
+                  color: valueColor != null ? Colors.white : Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                )),
+            Text(label,
+                style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.8), fontWeight: FontWeight.w600)),
+          ],
+        ),
+      );
+}
+
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final List<Widget> children;
+  const _SectionCard({required this.title, required this.icon, required this.children});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.border),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 20, color: AppTheme.primary),
+                ),
+                const SizedBox(width: 10),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Container(height: 1, color: AppTheme.border),
+            const SizedBox(height: 6),
+            ...children,
+          ],
+        ),
+      );
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String? value;
+  final Widget? valueWidget;
+  final Widget? trailing;
+  const _InfoRow({required this.label, this.value, this.valueWidget, this.trailing})
+      : assert(value != null || valueWidget != null);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 120, child: Text(label, style: _labelStyle)),
+            Expanded(
+              child: valueWidget ?? Text(value!, style: _valueStyle),
+            ),
+            if (trailing != null) trailing!,
+          ],
+        ),
+      );
+}
+
+class _CopyRow extends StatelessWidget {
+  final String label, value;
+  final bool monospace;
+  const _CopyRow({required this.label, required this.value, this.monospace = false});
+
+  @override
+  Widget build(BuildContext context) => _InfoRow(
+        label: label,
+        value: value,
+        trailing: value == '—'
+            ? null
+            : IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.copy_rounded, size: 18),
+                tooltip: 'Copy',
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: value));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('$label copied')),
+                  );
+                },
+              ),
+      );
+}
+
+class _StoreChip extends StatelessWidget {
+  final String code;
+  const _StoreChip({required this.code});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryLight,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+        ),
+        child: Text(code,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.primary)),
+      );
+}
+
+class _StatusPill extends StatelessWidget {
+  final bool active;
+  const _StatusPill({required this.active});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: (active ? AppTheme.success : AppTheme.error).withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          active ? 'Active' : 'Inactive',
+          style: TextStyle(
+            color: active ? AppTheme.success : AppTheme.error,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+}
