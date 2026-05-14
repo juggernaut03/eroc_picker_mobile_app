@@ -398,3 +398,403 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             _EscalationBanner(escalation: _existingEscalation!),
             const SizedBox(height: 12),
           ],
+          // Picking Progress
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.border),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.bar_chart_rounded, size: 22, color: AppTheme.primary),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('Picking Progress',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                    const Spacer(),
+                    if (_loadingItems)
+                      const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                if (!_loadingItems && total > 0) ...[
+                  Row(
+                    children: [
+                      Expanded(child: _ProgressStat(value: '$_actionedCount/$total', label: 'Actioned', color: AppTheme.primary)),
+                      Container(width: 1, height: 40, color: AppTheme.border),
+                      Expanded(child: _ProgressStat(value: '$_pickedCount', label: 'Picked', color: AppTheme.success)),
+                      Container(width: 1, height: 40, color: AppTheme.border),
+                      Expanded(child: _ProgressStat(value: '$_issueCount', label: 'Issues', color: _issueCount > 0 ? AppTheme.error : AppTheme.textMuted)),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: total > 0 ? _actionedCount / total : 0,
+                      backgroundColor: AppTheme.border,
+                      valueColor: AlwaysStoppedAnimation(
+                          _actionedCount == total && total > 0 ? AppTheme.success : AppTheme.primary),
+                      minHeight: 8,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    total > 0 ? '${(_actionedCount / total * 100).round()}% complete' : '0% complete',
+                    style: const TextStyle(fontSize: 14, color: AppTheme.textMuted),
+                  ),
+                ] else if (!_loadingItems)
+                  const Text('No item data available',
+                      style: TextStyle(color: AppTheme.textMuted, fontSize: 16)),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Order Info + Assignment Info (side-by-side on tablets, stacked on phones)
+          Builder(builder: (_) {
+            final orderInfo = _InfoCard(
+              title: 'Order Info',
+              icon: Icons.receipt_long_rounded,
+              child: Column(
+                children: [
+                  _InfoRow('Order ID', '#${order.ordersIdorders}'),
+                  _InfoRow('Store', order.storeCode),
+                  _InfoRow('Total Items', '${order.totalItems}'),
+                  _InfoRow('Total Amount', '₹${order.totalAmount.toStringAsFixed(2)}'),
+                  if (order.orderDate != null) _InfoRow('Order Date', formatDate(order.orderDate)),
+                  if (order.deliveryDate != null) _InfoRow('Delivery Date', order.deliveryDate!),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    child: Row(
+                      children: [
+                        const SizedBox(
+                          width: 130,
+                          child: Text('Status', style: TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
+                        ),
+                        StatusBadge(order.status),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+
+            final assignmentInfo = assignment == null
+                ? null
+                : _InfoCard(
+                    title: 'Current Assignment',
+                    icon: Icons.person_pin_rounded,
+                    child: Column(
+                      children: [
+                        if (assignment.assignedTo != null) ...[
+                          _InfoRow('Picker', assignment.assignedTo!.name),
+                          _InfoRow('Email', assignment.assignedTo!.email),
+                          if (assignment.assignedTo!.phone != null)
+                            _InfoRow('Phone', assignment.assignedTo!.phone!),
+                        ],
+                        _InfoRow('Assigned At', formatDateTime(assignment.assignedAt)),
+                        if (assignment.completedAt != null)
+                          _InfoRow('Completed At', formatDateTime(assignment.completedAt)),
+                        if (assignment.rejectedReason != null)
+                          _InfoRow('Reject Reason', assignment.rejectedReason!),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 7),
+                          child: Row(
+                            children: [
+                              const Text('Status', style: TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
+                              const Spacer(),
+                              StatusBadge(assignment.status),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+
+            if (isWide && assignmentInfo != null) {
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: orderInfo),
+                    const SizedBox(width: 12),
+                    Expanded(child: assignmentInfo),
+                  ],
+                ),
+              );
+            }
+            return Column(
+              children: [
+                orderInfo,
+                if (assignmentInfo != null) ...[
+                  const SizedBox(height: 12),
+                  assignmentInfo,
+                ],
+              ],
+            );
+          }),
+
+          // Issues — items the picker flagged (not_available, expired, damaged, etc.)
+          if (!_loadingItems && _issueItems.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.error.withValues(alpha: 0.25)),
+              ),
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppTheme.error.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.error_rounded, size: 22, color: AppTheme.error),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text('Issues',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.error.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text('${_issueItems.length}',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.error)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Container(height: 1, color: AppTheme.border),
+                  ...List.generate(_issueItems.length, (i) {
+                    final item = _issueItems[i];
+                    return Column(
+                      children: [
+                        _ManagerItemRow(item: item),
+                        if (i < _issueItems.length - 1) Container(height: 1, color: AppTheme.border),
+                      ],
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
+
+          // Items List
+          if (!_loadingItems && _items.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Tappable header
+                  InkWell(
+                    onTap: () => setState(() => _itemsExpanded = !_itemsExpanded),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(color: AppTheme.primaryLight, borderRadius: BorderRadius.circular(10)),
+                            child: const Icon(Icons.list_alt_rounded, size: 22, color: AppTheme.primary),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text('Items', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                          const Spacer(),
+                          Text('${_items.length} items', style: const TextStyle(fontSize: 14, color: AppTheme.textMuted)),
+                          const SizedBox(width: 6),
+                          AnimatedRotation(
+                            turns: _itemsExpanded ? 0 : -0.5,
+                            duration: const Duration(milliseconds: 200),
+                            child: const Icon(Icons.keyboard_arrow_down_rounded, size: 24, color: AppTheme.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Collapsible content
+                  AnimatedCrossFade(
+                    firstChild: Column(
+                      children: [
+                        Container(height: 1, color: AppTheme.border),
+                        ...List.generate(_items.length, (i) {
+                          final item = _items[i];
+                          return Column(
+                            children: [
+                              _ManagerItemRow(item: item),
+                              if (i < _items.length - 1) Container(height: 1, color: AppTheme.border),
+                            ],
+                          );
+                        }),
+                      ],
+                    ),
+                    secondChild: const SizedBox(width: double.infinity),
+                    crossFadeState: _itemsExpanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+                    duration: const Duration(milliseconds: 220),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+              ),
+            ),
+          );
+        },
+      ),
+      bottomNavigationBar: widget.readOnly ? null : Container(
+        color: Colors.white,
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Completed: send to super admin, then print receipt.
+                if (order.status == 'completed') ...[
+                  Builder(builder: (_) {
+                    final alreadySent =
+                        _sentToSuperAdmin || order.sentToSuperAdmin;
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        icon: Icon(
+                          alreadySent
+                              ? Icons.check_circle_rounded
+                              : Icons.send_rounded,
+                          size: 22,
+                        ),
+                        label: Text(
+                          alreadySent
+                              ? 'Sent to Super Admin'
+                              : 'Send to Super Admin',
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w700),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: alreadySent
+                              ? AppTheme.success
+                              : AppTheme.primary,
+                        ),
+                        onPressed: (_sending || alreadySent)
+                            ? null
+                            : _sendToSuperAdmin,
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.print_rounded, size: 22),
+                      label: const Text('Print',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      onPressed: _items.isEmpty ? null : _printOrder,
+                    ),
+                  ),
+                  // if (_existingEscalation == null) ...[
+                  //   const SizedBox(width: 12),
+                  //   Expanded(
+                  //     child: SizedBox(
+                  //       height: 52,
+                  //       child: ElevatedButton.icon(
+                  //         icon: const Icon(Icons.report_problem_rounded, size: 22),
+                  //         label: const Text('Escalate',
+                  //             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  //         style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
+                  //         onPressed: _showOrderEscalateDialog,
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ],
+                ]
+                // Rejected: picker declined, manager must manually reassign
+                else if (assignment != null && assignment.status == 'rejected') ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3F3),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded, size: 16, color: AppTheme.error),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Order rejected by picker. Please manually assign to an available picker.',
+                            style: TextStyle(fontSize: 12, color: AppTheme.error, height: 1.3),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.person_search_rounded, size: 22),
+                      label: const Text('Assign to Picker', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      onPressed: _showReassignDialog,
+                    ),
+                  ),
+                ]
+                // Pending and never assigned: use round-robin
+                else if (order.status == 'pending' && assignment == null)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.assignment_ind_rounded, size: 22),
+                      label: const Text('Assign via Round Robin', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      onPressed: _showAssignDialog,
+                    ),
+                  )
+                // Active assignment: allow reassignment
+                else if (assignment != null &&
+                    (assignment.status == 'assigned' || assignment.status == 'in_progress')) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.swap_horiz_rounded, size: 22),
+                      label: const Text('Reassign Picker', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      onPressed: _showReassignDialog,
+                    ),
