@@ -798,3 +798,337 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       label: const Text('Reassign Picker', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                       onPressed: _showReassignDialog,
                     ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProgressStat extends StatelessWidget {
+  final String value, label;
+  final Color color;
+
+  const _ProgressStat({required this.value, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: color)),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(fontSize: 14, color: AppTheme.textMuted, fontWeight: FontWeight.w500)),
+        ],
+      );
+}
+
+class _ManagerItemRow extends StatelessWidget {
+  final OrderItem item;
+
+  const _ManagerItemRow({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final ps = item.pickerStatus;
+    final status = ps?.pickedStatus ?? 'pending';
+    final color = AppTheme.itemStatusColor(status);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              width: 48,
+              height: 48,
+              child: Stack(
+                children: [
+                  ProductImage(
+                    url: item.pcodeImg,
+                    width: 48,
+                    height: 48,
+                    fallback: Container(
+                      color: color.withValues(alpha: 0.1),
+                      child: Icon(_statusIcon(status), color: color, size: 20),
+                    ),
+                  ),
+                  // Status indicator overlay (top-right)
+                  if (status != 'pending')
+                    Positioned(
+                      top: 2, right: 2,
+                      child: Container(
+                        width: 16, height: 16,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        child: Icon(_statusIcon(status), color: Colors.white, size: 9),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: item.itemName ?? 'Item'),
+                      if (item.pCode != null && item.pCode!.isNotEmpty)
+                        TextSpan(text: ' (${item.pCode})'),
+                    ],
+                  ),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+                ),
+                if (item.barcode != null) ...[
+                  const SizedBox(height: 2),
+                  Text(item.barcode!, style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                ],
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    _QtyChip(label: 'Ordered', value: '${item.orderedQuantity}', color: AppTheme.textSecondary),
+                    if (ps != null && ps.pickedQuantity > 0) ...[
+                      const SizedBox(width: 6),
+                      _QtyChip(label: 'Picked', value: '${ps.pickedQuantity}', color: AppTheme.success),
+                    ],
+                    const Spacer(),
+                    ItemStatusBadge(status),
+                  ],
+                ),
+                if (ps?.remark != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFBEB),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.warning.withValues(alpha: 0.25)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.format_quote_rounded, size: 13, color: AppTheme.warning),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(ps!.remark!,
+                              style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: AppTheme.textPrimary, height: 1.3)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'picked': return Icons.check_circle_rounded;
+      case 'not_available': return Icons.remove_circle_rounded;
+      case 'expired': return Icons.access_time_rounded;
+      case 'damaged': return Icons.broken_image_rounded;
+      default: return Icons.radio_button_unchecked_rounded;
+    }
+  }
+}
+
+class _QtyChip extends StatelessWidget {
+  final String label, value;
+  final Color color;
+
+  const _QtyChip({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          '$label: $value',
+          style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
+        ),
+      );
+}
+
+class _InfoCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Widget child;
+
+  const _InfoCard({required this.title, required this.icon, required this.child});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.border),
+        ),
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(color: AppTheme.primaryLight, borderRadius: BorderRadius.circular(10)),
+                  child: Icon(icon, size: 22, color: AppTheme.primary),
+                ),
+                const SizedBox(width: 12),
+                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(height: 1, color: AppTheme.border),
+            const SizedBox(height: 10),
+            child,
+          ],
+        ),
+      );
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label, value;
+  const _InfoRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 130,
+              child: Text(label, style: const TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
+            ),
+            Expanded(
+              child: Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+            ),
+          ],
+        ),
+      );
+}
+
+class _EscalationBanner extends StatelessWidget {
+  final Escalation escalation;
+  const _EscalationBanner({required this.escalation});
+
+  @override
+  Widget build(BuildContext context) {
+    final isOpen = escalation.isOpen;
+    final accent = isOpen ? AppTheme.error : AppTheme.success;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  isOpen ? Icons.report_problem_rounded : Icons.check_circle_rounded,
+                  color: accent,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isOpen ? 'Escalation' : 'Escalation (resolved)',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: accent),
+                    ),
+                    Text(
+                      formatDateTime(escalation.createdAt),
+                      style: const TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: accent.withValues(alpha: 0.15)),
+            ),
+            child: Text(
+              escalation.remarkSummary,
+              style: const TextStyle(fontSize: 15, color: AppTheme.textPrimary, height: 1.4),
+            ),
+          ),
+          if (escalation.raisedByName != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.person_outline_rounded, size: 16, color: AppTheme.textMuted),
+                const SizedBox(width: 4),
+                Text(
+                  'Raised by ${escalation.raisedByName}',
+                  style: const TextStyle(fontSize: 13, color: AppTheme.textMuted, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ],
+          if (escalation.resolutionNote != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.successLight,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.success.withValues(alpha: 0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Resolution',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.success)),
+                  const SizedBox(height: 4),
+                  Text(escalation.resolutionNote!,
+                      style: const TextStyle(fontSize: 14, color: AppTheme.success, height: 1.4)),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
