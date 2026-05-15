@@ -198,3 +198,65 @@ class OrderPdf {
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: PdfColors.blueGrey700),
           children: [
+            _th('#', headerStyle),
+            _th('Item', headerStyle),
+            _th('Ord', headerStyle, align: pw.TextAlign.center),
+            _th('Got', headerStyle, align: pw.TextAlign.center),
+            _th('Status', headerStyle, align: pw.TextAlign.center),
+            _th('Remark', headerStyle),
+          ],
+        ),
+        ...items.asMap().entries.map((entry) {
+          final i = entry.key;
+          final item = entry.value;
+          final ps = item.pickerStatus;
+          final ordered = item.orderedQuantity;
+          final got = ps?.pickedQuantity ?? 0;
+          final status = _statusLabel(item);
+          return pw.TableRow(
+            children: [
+              _td('${i + 1}', cellStyle),
+              _td(
+                item.pCode != null && item.pCode!.isNotEmpty
+                    ? '${item.itemName ?? '-'} (${item.pCode})'
+                    : (item.itemName ?? '-'),
+                cellStyle,
+              ),
+              _td('$ordered', cellStyle, align: pw.TextAlign.center),
+              _td(ps == null ? '-' : '$got', cellStyle, align: pw.TextAlign.center),
+              _td(status, cellStyle, align: pw.TextAlign.center),
+              _td(ps?.remark ?? '', cellStyle),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+  static pw.Widget _th(String s, pw.TextStyle style, {pw.TextAlign align = pw.TextAlign.left}) =>
+      pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+        child: pw.Text(s, style: style, textAlign: align),
+      );
+
+  static pw.Widget _td(String s, pw.TextStyle style, {pw.TextAlign align = pw.TextAlign.left}) =>
+      pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+        child: pw.Text(s, style: style, textAlign: align),
+      );
+
+  static String _statusLabel(OrderItem item) {
+    final ps = item.pickerStatus;
+    if (ps == null) return 'Pending';
+    final s = ps.pickedStatus;
+    if (s == 'picked' && ps.pickedQuantity < item.orderedQuantity) return 'Partial';
+    if (s == 'picked') return 'Picked';
+    if (s == 'not_available') return 'N/A';
+    if (s == 'expired') return 'Expired';
+    if (s == 'damaged') return 'Damaged';
+    return _titleCase(s);
+  }
+
+  static String _titleCase(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1).replaceAll('_', ' ');
+}
