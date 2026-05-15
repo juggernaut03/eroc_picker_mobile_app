@@ -198,3 +198,186 @@ class _EscalationList extends StatelessWidget {
   }
 }
 
+class _EscalationCard extends StatelessWidget {
+  final Escalation escalation;
+  final VoidCallback onRefresh;
+
+  const _EscalationCard({required this.escalation, required this.onRefresh});
+
+  Future<void> _openOrder(BuildContext context) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final loaderEntry = OverlayEntry(
+      builder: (_) => Container(
+        color: Colors.black.withValues(alpha: 0.25),
+        child: const Center(child: CircularProgressIndicator()),
+      ),
+    );
+    Overlay.of(context).insert(loaderEntry);
+    try {
+      final order = await ManagerService.getOrder(escalation.ordersIdorders);
+      loaderEntry.remove();
+      if (order == null) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('Order not found'), backgroundColor: AppTheme.error),
+        );
+        return;
+      }
+      navigator.push(
+        MaterialPageRoute(
+          builder: (_) => OrderDetailScreen(
+            order: order,
+            onRefresh: onRefresh,
+            highlightEscalation: escalation,
+          ),
+        ),
+      );
+    } catch (e) {
+      loaderEntry.remove();
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isOpen = escalation.isOpen;
+    final accentColor = isOpen ? AppTheme.error : AppTheme.success;
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _openOrder(context),
+        child: Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isOpen ? AppTheme.error.withValues(alpha: 0.2) : AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.05),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    isOpen ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+                    color: accentColor,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Order #${escalation.ordersIdorders}',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                      if (escalation.itemName != null)
+                        Text(escalation.itemName!,
+                            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w500),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(formatDateTime(escalation.createdAt),
+                          style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    isOpen ? 'Open' : 'Resolved',
+                    style: TextStyle(color: accentColor, fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(escalation.remarkSummary,
+                      style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary, height: 1.4)),
+                  if (escalation.raisedByName != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.person_outline_rounded, size: 13, color: AppTheme.textMuted),
+                        const SizedBox(width: 4),
+                        Text('Raised by ${escalation.raisedByName}',
+                            style: const TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (escalation.resolutionNote != null) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                decoration: BoxDecoration(
+                  color: AppTheme.successLight,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.success.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.check_circle_rounded, size: 15, color: AppTheme.success),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Resolution', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.success)),
+                          const SizedBox(height: 2),
+                          Text(escalation.resolutionNote!,
+                              style: const TextStyle(fontSize: 12, color: AppTheme.success, height: 1.4)),
+                        ],
+                      ),
+                    ),
+                    if (escalation.resolvedAt != null)
+                      Text(formatDateTime(escalation.resolvedAt),
+                          style: TextStyle(fontSize: 10, color: AppTheme.success.withValues(alpha: 0.7))),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+        ),
+      ),
+    );
+  }
+}
