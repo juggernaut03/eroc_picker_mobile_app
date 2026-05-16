@@ -4,3 +4,4 @@ class AppConstants {
   static const String appVersion = 'v1.0.0';
   static const String appLogo = 'assets/images/retailmagic_logo.webp';
 }
+
