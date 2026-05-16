@@ -36,10 +36,10 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen> {
     if (!mounted) return;
     if (ok) {
       final user = auth.user!;
-      if (!user.isSuperAdmin) {
+      if (!user.isAdmin) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('This login is only for super admin accounts.'),
+            content: Text('This login is only for admin accounts.'),
             backgroundColor: AppTheme.error,
           ),
         );
@@ -96,7 +96,7 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen> {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Super Admin',
+                  'Admin',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 26,

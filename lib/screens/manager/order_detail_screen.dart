@@ -233,10 +233,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Send to Super Admin',
+        title: const Text('Send to Admin',
             style: TextStyle(fontWeight: FontWeight.w700)),
         content: Text(
-            'Forward Order #${widget.order.ordersIdorders} to the super admin for review?'),
+            'Forward Order #${widget.order.ordersIdorders} to the admin for review?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -258,7 +258,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Order sent to super admin'),
+            content: Text('Order sent to admin'),
             backgroundColor: AppTheme.success),
       );
       widget.onRefresh();
@@ -698,9 +698,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           size: 22,
                         ),
                         label: Text(
-                          alreadySent
-                              ? 'Sent to Super Admin'
-                              : 'Send to Super Admin',
+                          alreadySent ? 'Sent to Admin' : 'Send to Admin',
                           style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w700),
                         ),

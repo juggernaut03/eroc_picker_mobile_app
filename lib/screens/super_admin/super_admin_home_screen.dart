@@ -95,7 +95,7 @@ class _SuperAdminHomeScreenState extends State<SuperAdminHomeScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                user?.name ?? 'Super Admin',
+                                user?.name ?? 'Admin',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(

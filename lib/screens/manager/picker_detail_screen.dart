@@ -168,7 +168,8 @@ class PickerDetailScreen extends StatelessWidget {
   String _humanRole(String? r) {
     switch (r) {
       case 'picker': return 'Picker';
-      case 'store_manager': return 'Store Manager';
+      case 'manager': return 'Manager';
+      case 'admin': return 'Admin';
       default: return r ?? '—';
     }
   }
@@ -257,7 +258,7 @@ class _ProfileHeader extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            role == 'store_manager' ? 'Manager' : 'Picker',
+                            role == 'manager' ? 'Manager' : role == 'admin' ? 'Admin' : 'Picker',
                             style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700),
                           ),
                         ),

@@ -91,7 +91,7 @@ class PickerUser {
         'is_active': isActive,
       };
 
-  bool get isManager => role == 'store_manager';
+  bool get isManager => role == 'manager';
   bool get isPicker => role == 'picker';
-  bool get isSuperAdmin => role == 'super_admin';
+  bool get isAdmin => role == 'admin';
 }

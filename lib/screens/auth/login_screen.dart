@@ -47,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
       NotificationService.registerTokenSafe();
       final user = auth.user!;
       Widget home;
-      if (user.isSuperAdmin) {
+      if (user.isAdmin) {
         home = const SuperAdminHomeScreen();
       } else if (user.isManager) {
         home = const ManagerHomeScreen();
@@ -212,7 +212,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ),
                             child: const Text(
-                              'Sign in as Super Admin',
+                              'Sign in as Admin',
                               style: TextStyle(
                                   fontSize: 13, fontWeight: FontWeight.w600),
                             ),

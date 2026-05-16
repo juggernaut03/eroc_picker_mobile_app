@@ -53,7 +53,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (auth.isLoggedIn) {
       NotificationService.registerTokenSafe();
       final user = auth.user!;
-      if (user.isSuperAdmin) {
+      if (user.isAdmin) {
         _go(const SuperAdminHomeScreen());
       } else if (user.isManager) {
         _go(const ManagerHomeScreen());
