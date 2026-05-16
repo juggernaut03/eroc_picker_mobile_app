@@ -14,3 +14,4 @@ String formatTime(DateTime? dt) {
   if (dt == null) return '—';
   return DateFormat('hh:mm a').format(dt.toLocal());
 }
+
