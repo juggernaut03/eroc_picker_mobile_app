@@ -7,6 +7,7 @@ class AuthProvider extends ChangeNotifier {
   UiConfig? _uiConfig;
   bool _loading = false;
   String? _error;
+  DateTime? _lastRefresh;
 
   PickerUser? get user => _user;
   UiConfig? get uiConfig => _uiConfig;
@@ -54,6 +55,30 @@ class AuthProvider extends ChangeNotifier {
     _user = null;
     _uiConfig = null;
     notifyListeners();
+  }
+
+  /// Re-sync the user + capabilities from the backend so permission changes
+  /// take effect without a re-login. Safe to call repeatedly: no-ops when
+  /// logged out, and throttled to avoid spamming /auth/me on rapid resumes.
+  /// Never logs the user out on a transient network error.
+  Future<void> refresh({bool force = false}) async {
+    if (_user == null) return;
+    if (!force &&
+        _lastRefresh != null &&
+        DateTime.now().difference(_lastRefresh!).inSeconds < 30) {
+      return;
+    }
+    _lastRefresh = DateTime.now();
+    try {
+      final result = await AuthService.refreshSession();
+      if (result != null) {
+        _user = result.user;
+        _uiConfig = result.uiConfig;
+        notifyListeners();
+      }
+    } catch (_) {
+      // Transient failure — keep cached session; backend 403 still enforces.
+    }
   }
 
   /// Picker self-toggle of `is_active`. Throws on failure.

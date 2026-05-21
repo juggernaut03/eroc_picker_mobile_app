@@ -207,6 +207,8 @@ class _PickerHeroHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ui = context.watch<AuthProvider>().uiConfig;
+    final canSetAvailability = ui == null ? true : ui.can('can_set_availability');
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -323,17 +325,19 @@ class _PickerHeroHeader extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 8),
+            if (canSetAvailability) ...[
+              const SizedBox(height: 8),
 
-            // Availability strip — picker self-toggles is_active
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _AvailabilityStrip(
-                isActive: isActive,
-                saving: savingAvailability,
-                onChanged: onToggleAvailability,
+              // Availability strip — picker self-toggles is_active
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _AvailabilityStrip(
+                  isActive: isActive,
+                  saving: savingAvailability,
+                  onChanged: onToggleAvailability,
+                ),
               ),
-            ),
+            ],
 
             const SizedBox(height: 10),
 

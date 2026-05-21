@@ -5,6 +5,8 @@ class UiConfig {
   final bool canReassign;
   final bool canEscalate;
   final bool canViewAllStores;
+  // Full effective capability map (capKey -> bool) from the backend.
+  final Map<String, bool> capabilities;
 
   UiConfig({
     required this.navItems,
@@ -13,6 +15,7 @@ class UiConfig {
     required this.canReassign,
     required this.canEscalate,
     required this.canViewAllStores,
+    this.capabilities = const {},
   });
 
   factory UiConfig.fromJson(Map<String, dynamic> json) => UiConfig(
@@ -25,7 +28,19 @@ class UiConfig {
         canReassign: json['can_reassign'] ?? false,
         canEscalate: json['can_escalate'] ?? false,
         canViewAllStores: json['can_view_all_stores'] ?? false,
+        capabilities: (json['capabilities'] as Map?)
+                ?.map((k, v) => MapEntry(k.toString(), v == true)) ??
+            const {},
       );
+
+  // Capability check. Fallback rule: if the capabilities map is empty (an old
+  // cached session from before this feature), be permissive so users aren't
+  // locked out before the next /auth/me refresh. The backend 403 remains the
+  // hard gate regardless.
+  bool can(String key) {
+    if (capabilities.isEmpty) return true;
+    return capabilities[key] == true;
+  }
 }
 
 class NavItem {

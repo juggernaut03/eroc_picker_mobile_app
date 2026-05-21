@@ -49,6 +49,21 @@ class AuthService {
     await ApiService.put('/auth/fcm-token', {'fcm_token': fcmToken});
   }
 
+  /// Re-fetch the current user + ui_config (with effective capabilities) from
+  /// the backend and rewrite the cache. Used to pick up permission changes
+  /// without a full re-login. Does NOT reset the 7-day login anchor.
+  /// Returns the refreshed (user, uiConfig) or null if not refreshable.
+  static Future<({PickerUser user, UiConfig uiConfig})?> refreshSession() async {
+    final token = await getToken();
+    if (token == null) return null;
+    final res = await ApiService.get('/auth/me');
+    final user = PickerUser.fromJson(res['user']);
+    final uiConfig = UiConfig.fromJson(res['ui_config'] ?? {});
+    await _storage.write(key: _keyUser, value: jsonEncode(user.toJson()));
+    await _storage.write(key: _keyUiConfig, value: jsonEncode(res['ui_config']));
+    return (user: user, uiConfig: uiConfig);
+  }
+
   /// Picker self-toggles their `is_active` flag.
   /// Round-robin will skip inactive pickers on the next assignment.
   static Future<PickerUser> setMyAvailability(bool isActive) async {

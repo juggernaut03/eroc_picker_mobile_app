@@ -52,6 +52,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     final auth = context.read<AuthProvider>();
     if (auth.isLoggedIn) {
       NotificationService.registerTokenSafe();
+      // Cold-start sync of permissions (fire-and-forget; UI updates via
+      // notifyListeners once it lands). Backend 403 is the hard gate meanwhile.
+      auth.refresh(force: true);
       final user = auth.user!;
       if (user.isAdmin) {
         _go(const SuperAdminHomeScreen());

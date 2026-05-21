@@ -24,14 +24,42 @@ void main() async {
   runApp(RetailMagicApp(auth: auth));
 }
 
-class RetailMagicApp extends StatelessWidget {
+class RetailMagicApp extends StatefulWidget {
   final AuthProvider auth;
   const RetailMagicApp({super.key, required this.auth});
 
   @override
+  State<RetailMagicApp> createState() => _RetailMagicAppState();
+}
+
+class _RetailMagicAppState extends State<RetailMagicApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // On app resume, re-sync permissions so changes made in the admin panel
+    // take effect within seconds. AuthProvider.refresh() is throttled + no-ops
+    // when logged out.
+    if (state == AppLifecycleState.resumed) {
+      widget.auth.refresh();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
-      value: auth,
+      value: widget.auth,
       child: MaterialApp(
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,

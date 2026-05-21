@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/item_model.dart';
 import '../../models/order_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/picker_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/responsive.dart';
@@ -241,6 +243,10 @@ class _OrderItemsScreenState extends State<OrderItemsScreen> {
     final total = _items.length;
     final progress = total > 0 ? _actionedCount / total : 0.0;
     final filtered = _itemsFor(_filter);
+    // Capability gating for picker actions.
+    final ui = context.watch<AuthProvider>().uiConfig;
+    bool cap(String key) => ui == null ? true : ui.can(key);
+    final canPickItems = cap('can_pick_items');
     // Map filtered index back to absolute index in _items so the index badge
     // ("1", "2", "3" …) stays consistent across tab switches.
     final absoluteIndexOf = {
@@ -325,8 +331,8 @@ class _OrderItemsScreenState extends State<OrderItemsScreen> {
                                     child: _ItemCard(
                                       item: item,
                                       assignmentId: _assignmentId ?? '',
-                                      canAct:
-                                          _currentStatus == 'in_progress',
+                                      canAct: _currentStatus == 'in_progress' &&
+                                          canPickItems,
                                       onUpdated: _load,
                                       index: absoluteIndexOf[item] ?? (i + 1),
                                     ),
@@ -361,7 +367,8 @@ class _OrderItemsScreenState extends State<OrderItemsScreen> {
                                               assignmentId:
                                                   _assignmentId ?? '',
                                               canAct: _currentStatus ==
-                                                  'in_progress',
+                                                      'in_progress' &&
+                                                  canPickItems,
                                               onUpdated: _load,
                                               index: absoluteIndexOf[item] ?? (i + 1),
                                             );
@@ -389,6 +396,9 @@ class _OrderItemsScreenState extends State<OrderItemsScreen> {
         onStart: _startPicking,
         onComplete: _completeOrder,
         onReject: _rejectOrder,
+        canStart: cap('can_start_picking'),
+        canComplete: cap('can_complete_orders'),
+        canReject: cap('can_reject_orders'),
       ),
     );
   }
@@ -1010,6 +1020,7 @@ class _BottomBar extends StatelessWidget {
   final String status;
   final int pendingCount;
   final VoidCallback onStart, onComplete, onReject;
+  final bool canStart, canComplete, canReject;
 
   const _BottomBar({
     required this.status,
@@ -1017,11 +1028,20 @@ class _BottomBar extends StatelessWidget {
     required this.onStart,
     required this.onComplete,
     required this.onReject,
+    this.canStart = true,
+    this.canComplete = true,
+    this.canReject = true,
   });
 
   @override
   Widget build(BuildContext context) {
     if (status != 'assigned' && status != 'in_progress') return const SizedBox.shrink();
+
+    // The primary action for this status (start while assigned, complete while
+    // in_progress). If the picker lacks that capability AND can't reject, the
+    // bar has nothing to show.
+    final primaryAllowed = status == 'assigned' ? canStart : canComplete;
+    if (!primaryAllowed && !canReject) return const SizedBox.shrink();
 
     final allActioned = pendingCount == 0;
 
@@ -1061,50 +1081,53 @@ class _BottomBar extends StatelessWidget {
               Row(
                 children: [
                   // Reject button — compact outlined
-                  Container(
-                    width: 52, height: 52,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFF87171).withValues(alpha: 0.5)),
-                      color: const Color(0xFFFEF2F2),
+                  if (canReject) ...[
+                    Container(
+                      width: 52, height: 52,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFF87171).withValues(alpha: 0.5)),
+                        color: const Color(0xFFFEF2F2),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.cancel_rounded, color: Color(0xFFDC2626), size: 22),
+                        onPressed: onReject,
+                        tooltip: 'Reject order',
+                      ),
                     ),
-                    child: IconButton(
-                      icon: const Icon(Icons.cancel_rounded, color: Color(0xFFDC2626), size: 22),
-                      onPressed: onReject,
-                      tooltip: 'Reject order',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
+                    const SizedBox(width: 12),
+                  ],
 
                   // Primary action
-                  Expanded(
-                    child: SizedBox(
-                      height: 52,
-                      child: status == 'assigned'
-                          ? ElevatedButton.icon(
-                              icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                              label: const Text('Start Picking'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1565C0),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  if (primaryAllowed)
+                    Expanded(
+                      child: SizedBox(
+                        height: 52,
+                        child: status == 'assigned'
+                            ? ElevatedButton.icon(
+                                icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                                label: const Text('Start Picking'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1565C0),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                ),
+                                onPressed: onStart,
+                              )
+                            : ElevatedButton.icon(
+                                icon: const Icon(Icons.check_rounded, size: 20),
+                                label: const Text('Complete Order'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF16A34A),
+                                  disabledBackgroundColor: const Color(0xFFE5E7EB),
+                                  disabledForegroundColor: const Color(0xFF9CA3AF),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                ),
+                                onPressed: allActioned ? onComplete : null,
                               ),
-                              onPressed: onStart,
-                            )
-                          : ElevatedButton.icon(
-                              icon: const Icon(Icons.check_rounded, size: 20),
-                              label: const Text('Complete Order'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF16A34A),
-                                disabledBackgroundColor: const Color(0xFFE5E7EB),
-                                disabledForegroundColor: const Color(0xFF9CA3AF),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                              ),
-                              onPressed: allActioned ? onComplete : null,
-                            ),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ],

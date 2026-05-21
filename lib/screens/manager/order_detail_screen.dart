@@ -358,6 +358,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final order = widget.order;
     final assignment = order.currentAssignment;
     final total = _items.length;
+    // Capability gating for the action buttons below.
+    final ui = context.watch<AuthProvider>().uiConfig;
+    bool cap(String key) => ui == null ? true : ui.can(key);
 
     return Scaffold(
       backgroundColor: AppTheme.surface,
@@ -684,46 +687,49 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               children: [
                 // Completed: send to super admin, then print receipt.
                 if (order.status == 'completed') ...[
-                  Builder(builder: (_) {
-                    final alreadySent =
-                        _sentToSuperAdmin || order.sentToSuperAdmin;
-                    return SizedBox(
+                  if (cap('can_send_to_super_admin'))
+                    Builder(builder: (_) {
+                      final alreadySent =
+                          _sentToSuperAdmin || order.sentToSuperAdmin;
+                      return SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          icon: Icon(
+                            alreadySent
+                                ? Icons.check_circle_rounded
+                                : Icons.send_rounded,
+                            size: 22,
+                          ),
+                          label: Text(
+                            alreadySent ? 'Sent to Admin' : 'Send to Admin',
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w700),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: alreadySent
+                                ? AppTheme.success
+                                : AppTheme.primary,
+                          ),
+                          onPressed: (_sending || alreadySent)
+                              ? null
+                              : _sendToSuperAdmin,
+                        ),
+                      );
+                    }),
+                  if (cap('can_send_to_super_admin') && cap('can_print_orders'))
+                    const SizedBox(height: 10),
+                  if (cap('can_print_orders'))
+                    SizedBox(
                       width: double.infinity,
                       height: 52,
-                      child: ElevatedButton.icon(
-                        icon: Icon(
-                          alreadySent
-                              ? Icons.check_circle_rounded
-                              : Icons.send_rounded,
-                          size: 22,
-                        ),
-                        label: Text(
-                          alreadySent ? 'Sent to Admin' : 'Send to Admin',
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: alreadySent
-                              ? AppTheme.success
-                              : AppTheme.primary,
-                        ),
-                        onPressed: (_sending || alreadySent)
-                            ? null
-                            : _sendToSuperAdmin,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.print_rounded, size: 22),
+                        label: const Text('Print',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                        onPressed: _items.isEmpty ? null : _printOrder,
                       ),
-                    );
-                  }),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.print_rounded, size: 22),
-                      label: const Text('Print',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                      onPressed: _items.isEmpty ? null : _printOrder,
                     ),
-                  ),
                   // if (_existingEscalation == null) ...[
                   //   const SizedBox(width: 12),
                   //   Expanded(
@@ -763,19 +769,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.person_search_rounded, size: 22),
-                      label: const Text('Assign to Picker', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                      onPressed: _showReassignDialog,
+                  if (cap('can_reassign')) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.person_search_rounded, size: 22),
+                        label: const Text('Assign to Picker', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                        onPressed: _showReassignDialog,
+                      ),
                     ),
-                  ),
+                  ],
                 ]
                 // Pending and never assigned: use round-robin
-                else if (order.status == 'pending' && assignment == null)
+                else if (order.status == 'pending' && assignment == null && cap('can_assign_orders'))
                   SizedBox(
                     width: double.infinity,
                     height: 52,
@@ -787,7 +795,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   )
                 // Active assignment: allow reassignment
                 else if (assignment != null &&
-                    (assignment.status == 'assigned' || assignment.status == 'in_progress')) ...[
+                    (assignment.status == 'assigned' || assignment.status == 'in_progress') &&
+                    cap('can_reassign')) ...[
                   SizedBox(
                     width: double.infinity,
                     height: 52,
