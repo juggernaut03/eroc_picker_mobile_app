@@ -11,11 +11,15 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _local =
       FlutterLocalNotificationsPlugin();
 
+  static const _notificationSound =
+      RawResourceAndroidNotificationSound('notification');
+
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'picker_orders',
+    'picker_orders_v2',
     'Picker Orders',
     description: 'Notifications for new order assignments',
     importance: Importance.max,
+    sound: _notificationSound,
   );
 
   static bool _firebaseReady = false;
@@ -67,6 +71,8 @@ class NotificationService {
           importance: Importance.max,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
+          sound: _notificationSound,
+          playSound: true,
         ),
       ),
     );
