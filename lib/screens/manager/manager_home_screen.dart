@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/notification_service.dart';
 import '../../utils/app_theme.dart';
 import 'orders_tab.dart';
 import 'pickers_tab.dart';
@@ -18,6 +20,26 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   int _currentIndex = 0;
   // final _escalationsKey = GlobalKey<EscalationsTabState>();
   final _notificationsKey = GlobalKey<NotificationsTabState>();
+  StreamSubscription? _notifTapSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _notifTapSub = NotificationService.onNotificationTap.listen((_) {
+      if (!mounted) return;
+      // Notifications is always the last tab — setting 99 gets clamped to it in build().
+      setState(() => _currentIndex = 99);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _notificationsKey.currentState?.reload();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _notifTapSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

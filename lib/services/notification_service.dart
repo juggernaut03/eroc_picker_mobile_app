@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -23,6 +24,11 @@ class NotificationService {
   );
 
   static bool _firebaseReady = false;
+  static bool _tokenRefreshRegistered = false;
+
+  // Emits whenever the user taps a push notification (background or terminated).
+  static final _tapController = StreamController<RemoteMessage>.broadcast();
+  static Stream<RemoteMessage> get onNotificationTap => _tapController.stream;
 
   /// Initializes local notifications always; Firebase only if configured.
   static Future<void> initSafe() async {
@@ -38,6 +44,19 @@ class NotificationService {
         sound: true,
       );
       FirebaseMessaging.onMessage.listen(_onForegroundMessage);
+
+      // Tapped while app was in background.
+      FirebaseMessaging.onMessageOpenedApp
+          .listen((msg) => _tapController.add(msg));
+
+      // Tapped while app was fully terminated — delay so the widget tree is ready.
+      final initial = await FirebaseMessaging.instance.getInitialMessage();
+      if (initial != null) {
+        Future.delayed(
+          const Duration(milliseconds: 600),
+          () => _tapController.add(initial),
+        );
+      }
     } catch (e) {
       debugPrint('Firebase not configured — push notifications disabled. ($e)');
     }
@@ -88,7 +107,11 @@ class NotificationService {
       if (token != null) {
         await AuthService.updateFcmToken(token);
       }
-      messaging.onTokenRefresh.listen(AuthService.updateFcmToken);
+      // Guard against registering onTokenRefresh multiple times (e.g. cached login + explicit login).
+      if (!_tokenRefreshRegistered) {
+        _tokenRefreshRegistered = true;
+        messaging.onTokenRefresh.listen(AuthService.updateFcmToken);
+      }
     } catch (e) {
       debugPrint('FCM token registration failed: $e');
     }

@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../services/notification_service.dart';
 import '../../utils/app_theme.dart';
 import 'picker_orders_screen.dart';
 import 'picker_notifications_screen.dart';
@@ -13,11 +15,26 @@ class PickerHomeScreen extends StatefulWidget {
 class _PickerHomeScreenState extends State<PickerHomeScreen> {
   int _currentIndex = 0;
   final _notificationsKey = GlobalKey<PickerNotificationsScreenState>();
+  StreamSubscription? _notifTapSub;
 
   late final List<Widget> _tabs = [
     const PickerOrdersScreen(),
     PickerNotificationsScreen(key: _notificationsKey),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _notifTapSub = NotificationService.onNotificationTap.listen((_) {
+      if (mounted) _onTabSelected(1);
+    });
+  }
+
+  @override
+  void dispose() {
+    _notifTapSub?.cancel();
+    super.dispose();
+  }
 
   void _onTabSelected(int i) {
     setState(() => _currentIndex = i);

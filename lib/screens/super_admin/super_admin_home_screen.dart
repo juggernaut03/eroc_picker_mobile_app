@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/notification_service.dart';
 import '../../services/super_admin_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/helpers.dart';
@@ -20,11 +22,21 @@ class _SuperAdminHomeScreenState extends State<SuperAdminHomeScreen> {
   bool _loading = false;
   SuperAdminKpis? _kpis;
   List<Order> _orders = [];
+  StreamSubscription? _notifTapSub;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _notifTapSub = NotificationService.onNotificationTap.listen((_) {
+      if (mounted) _load();
+    });
+  }
+
+  @override
+  void dispose() {
+    _notifTapSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {

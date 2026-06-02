@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   PickerUser? _user;
@@ -19,6 +20,8 @@ class AuthProvider extends ChangeNotifier {
     _user = await AuthService.getCachedUser();
     _uiConfig = await AuthService.getCachedUiConfig();
     notifyListeners();
+    // Re-register FCM token in case it rotated since last login.
+    if (_user != null) NotificationService.registerTokenSafe();
   }
 
   Future<bool> login({
@@ -41,6 +44,7 @@ class AuthProvider extends ChangeNotifier {
       _uiConfig = UiConfig.fromJson(res['ui_config']);
       _loading = false;
       notifyListeners();
+      NotificationService.registerTokenSafe(); // fire-and-forget
       return true;
     } catch (e) {
       _error = e.toString();
