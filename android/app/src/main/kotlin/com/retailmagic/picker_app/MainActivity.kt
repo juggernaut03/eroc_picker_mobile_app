@@ -1,4 +1,4 @@
-package com.patelrmart.picker_app
+package com.retailmagic.picker_app
 
 import io.flutter.embedding.android.FlutterActivity
 

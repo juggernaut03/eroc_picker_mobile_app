@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "710319938737",
+    "project_id": "pickerapp-89712",
+    "storage_bucket": "pickerapp-89712.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:710319938737:android:54b936105d548ae1e3d690",
+        "android_client_info": {
+          "package_name": "com.retailmagic.picker_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcXN75vKiAeWemuzpvJyHuj9p0qc-k32k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
