@@ -132,25 +132,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       opacity: _fade,
                       child: ScaleTransition(
                         scale: _scale,
-                        child: Container(
-                          width: 110,
-                          height: 110,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(32),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 40,
-                                offset: const Offset(0, 16),
-                              ),
-                            ],
-                          ),
-                          child: Image.asset(
-                            AppConstants.appLogo,
-                            fit: BoxFit.contain,
-                          ),
+                        child: Image.asset(
+                          AppConstants.appLogo,
+                          width: 240,
+                          fit: BoxFit.contain,
                         ),
                       ),
                     ),
