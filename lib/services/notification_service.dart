@@ -93,6 +93,12 @@ class NotificationService {
           sound: _notificationSound,
           playSound: true,
         ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          sound: 'notification.wav',
+        ),
       ),
     );
   }
