@@ -50,3 +50,6 @@ flutter_*.png
 /android/build/
 /android/.gradle/
 /android/.kotlin/
+
+# FVM Version Cache
+.fvm/
