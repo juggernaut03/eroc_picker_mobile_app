@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/manager_service.dart';
 import '../../services/notification_service.dart';
 import '../../utils/app_theme.dart';
 import 'orders_tab.dart';
@@ -18,13 +19,19 @@ class ManagerHomeScreen extends StatefulWidget {
 
 class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   int _currentIndex = 0;
+  int _unreadCount = 0;
   // final _escalationsKey = GlobalKey<EscalationsTabState>();
   final _notificationsKey = GlobalKey<NotificationsTabState>();
   StreamSubscription? _notifTapSub;
+  StreamSubscription? _foregroundSub;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
+    _pollUnread(); // initial badge count
+    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _pollUnread());
+
     _notifTapSub = NotificationService.onNotificationTap.listen((_) {
       if (!mounted) return;
       // Notifications is always the last tab — setting 99 gets clamped to it in build().
@@ -33,11 +40,26 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         _notificationsKey.currentState?.reload();
       });
     });
+
+    _foregroundSub = NotificationService.onForegroundMessage.listen((_) {
+      if (!mounted) return;
+      _pollUnread();
+      _notificationsKey.currentState?.reload();
+    });
+  }
+
+  Future<void> _pollUnread() async {
+    try {
+      final res = await ManagerService.getNotifications();
+      if (mounted) setState(() => _unreadCount = res.unreadCount);
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _notifTapSub?.cancel();
+    _foregroundSub?.cancel();
+    _pollTimer?.cancel();
     super.dispose();
   }
 
@@ -80,7 +102,10 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
 
     void onTabSelected(int i) {
       setState(() => _currentIndex = i);
-      if (entries[i].isNotifications) _notificationsKey.currentState?.reload();
+      if (entries[i].isNotifications) {
+        _notificationsKey.currentState?.reload();
+        setState(() => _unreadCount = 0);
+      }
     }
 
     return Scaffold(
@@ -109,7 +134,13 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
             destinations: entries
                 .map(
                   (e) => NavigationDestination(
-                    icon: Icon(e.icon),
+                    icon: e.isNotifications && _unreadCount > 0
+                        ? Badge(
+                            label: Text('$_unreadCount', style: const TextStyle(fontSize: 10)),
+                            backgroundColor: AppTheme.error,
+                            child: Icon(e.icon),
+                          )
+                        : Icon(e.icon),
                     selectedIcon: Icon(e.selectedIcon, color: AppTheme.primary),
                     label: e.label,
                   ),

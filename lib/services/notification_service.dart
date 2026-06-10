@@ -6,7 +6,11 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'auth_service.dart';
 
 @pragma('vm:entry-point')
-Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {}
+Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  // Notification messages are shown automatically by the OS using the channel
+  // specified in the FCM payload. No manual display needed here.
+}
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _local =
@@ -29,6 +33,10 @@ class NotificationService {
   // Emits whenever the user taps a push notification (background or terminated).
   static final _tapController = StreamController<RemoteMessage>.broadcast();
   static Stream<RemoteMessage> get onNotificationTap => _tapController.stream;
+
+  // Emits whenever a push notification arrives while the app is in foreground.
+  static final _foregroundController = StreamController<RemoteMessage>.broadcast();
+  static Stream<RemoteMessage> get onForegroundMessage => _foregroundController.stream;
 
   /// Initializes local notifications always; Firebase only if configured.
   static Future<void> initSafe() async {
@@ -76,6 +84,7 @@ class NotificationService {
   }
 
   static void _onForegroundMessage(RemoteMessage message) {
+    _foregroundController.add(message); // notify listeners (badge update, list reload)
     final notification = message.notification;
     if (notification == null) return;
     _local.show(
