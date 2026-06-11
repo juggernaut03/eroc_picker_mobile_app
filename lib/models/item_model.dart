@@ -10,6 +10,9 @@ class OrderItem {
   final double? productMrp;
   final int orderedQuantity;
   final ItemPickerStatus? pickerStatus;
+  final String? categoryName;
+  final String? departmentName;
+  final String? subCategoryName;
 
   OrderItem({
     required this.id,
@@ -23,6 +26,9 @@ class OrderItem {
     this.productMrp,
     required this.orderedQuantity,
     this.pickerStatus,
+    this.categoryName,
+    this.departmentName,
+    this.subCategoryName,
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
@@ -39,7 +45,16 @@ class OrderItem {
         pickerStatus: json['picker_status'] != null
             ? ItemPickerStatus.fromJson(json['picker_status'])
             : null,
+        categoryName: json['category_name'] as String?,
+        departmentName: json['department_name'] as String?,
+        subCategoryName: json['sub_category_name'] as String?,
       );
+
+  String get displayCategory {
+    if (categoryName != null && categoryName!.trim().isNotEmpty) return categoryName!.trim();
+    if (departmentName != null && departmentName!.trim().isNotEmpty) return departmentName!.trim();
+    return 'Other';
+  }
 }
 
 class ItemPickerStatus {

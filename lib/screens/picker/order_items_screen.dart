@@ -21,6 +21,21 @@ class OrderItemsScreen extends StatefulWidget {
 
 enum _ItemFilter { pending, picked, issues }
 
+// ── Grouped list entries ────────────────────────────────────────────────────
+sealed class _ListEntry {}
+
+class _CategoryEntry extends _ListEntry {
+  final String name;
+  final int total;
+  final int actioned; // picked or issued
+  _CategoryEntry(this.name, this.total, this.actioned);
+}
+
+class _ItemEntry extends _ListEntry {
+  final OrderItem item;
+  _ItemEntry(this.item);
+}
+
 class _OrderItemsScreenState extends State<OrderItemsScreen> {
   bool _loading = true;
   String? _assignmentId;
@@ -28,6 +43,7 @@ class _OrderItemsScreenState extends State<OrderItemsScreen> {
   String _currentStatus = '';
   _ItemFilter _filter = _ItemFilter.pending;
   final ScrollController _scrollController = ScrollController();
+  final Set<String> _collapsedCategories = {};
 
   @override
   void initState() {
@@ -238,6 +254,31 @@ class _OrderItemsScreenState extends State<OrderItemsScreen> {
     return preferred;
   }
 
+  List<_ListEntry> _buildGrouped(List<OrderItem> items) {
+    final groups = <String, List<OrderItem>>{};
+    for (final item in items) {
+      groups.putIfAbsent(item.displayCategory, () => []).add(item);
+    }
+    final sorted = groups.entries.toList()
+      ..sort((a, b) {
+        if (a.key == 'Other') return 1;
+        if (b.key == 'Other') return -1;
+        return a.key.compareTo(b.key);
+      });
+
+    final result = <_ListEntry>[];
+    for (final entry in sorted) {
+      final actioned = entry.value
+          .where((i) => i.pickerStatus != null && !i.pickerStatus!.isPending)
+          .length;
+      result.add(_CategoryEntry(entry.key, entry.value.length, actioned));
+      if (!_collapsedCategories.contains(entry.key)) {
+        result.addAll(entry.value.map((i) => _ItemEntry(i)));
+      }
+    }
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) {
     final total = _items.length;
@@ -317,22 +358,37 @@ class _OrderItemsScreenState extends State<OrderItemsScreen> {
                               return _EmptyFilter(filter: _filter);
                             }
 
+                            final listEntries = _buildGrouped(filtered);
+
                             if (columns == 1) {
                               return ListView.builder(
                                 controller: _scrollController,
-                                padding: const EdgeInsets.fromLTRB(
-                                    16, 8, 16, 130),
-                                itemCount: filtered.length,
+                                padding: const EdgeInsets.fromLTRB(16, 8, 16, 130),
+                                itemCount: listEntries.length,
                                 itemBuilder: (ctx, i) {
-                                  final item = filtered[i];
+                                  final entry = listEntries[i];
+                                  if (entry is _CategoryEntry) {
+                                    return _CategoryHeader(
+                                      name: entry.name,
+                                      total: entry.total,
+                                      actioned: entry.actioned,
+                                      collapsed: _collapsedCategories.contains(entry.name),
+                                      onToggle: () => setState(() {
+                                        if (_collapsedCategories.contains(entry.name)) {
+                                          _collapsedCategories.remove(entry.name);
+                                        } else {
+                                          _collapsedCategories.add(entry.name);
+                                        }
+                                      }),
+                                    );
+                                  }
+                                  final item = (entry as _ItemEntry).item;
                                   return Padding(
-                                    padding:
-                                        const EdgeInsets.only(bottom: 14),
+                                    padding: const EdgeInsets.only(bottom: 14),
                                     child: _ItemCard(
                                       item: item,
                                       assignmentId: _assignmentId ?? '',
-                                      canAct: _currentStatus == 'in_progress' &&
-                                          canPickItems,
+                                      canAct: _currentStatus == 'in_progress' && canPickItems,
                                       onUpdated: _load,
                                       index: absoluteIndexOf[item] ?? (i + 1),
                                     ),
@@ -341,45 +397,63 @@ class _OrderItemsScreenState extends State<OrderItemsScreen> {
                               );
                             }
 
+                            // Multi-column (tablet): category headers span full width,
+                            // items laid out in a grid within each section.
                             return Center(
                               child: ConstrainedBox(
-                                constraints:
-                                    BoxConstraints(maxWidth: maxContent),
+                                constraints: BoxConstraints(maxWidth: maxContent),
                                 child: CustomScrollView(
                                   controller: _scrollController,
                                   slivers: [
-                                    SliverPadding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                          16, 8, 16, 0),
-                                      sliver: SliverGrid(
-                                        gridDelegate:
-                                            SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: columns,
-                                          mainAxisSpacing: 12,
-                                          crossAxisSpacing: 12,
-                                          mainAxisExtent: 200,
-                                        ),
-                                        delegate: SliverChildBuilderDelegate(
-                                          (ctx, i) {
-                                            final item = filtered[i];
-                                            return _ItemCard(
-                                              item: item,
-                                              assignmentId:
-                                                  _assignmentId ?? '',
-                                              canAct: _currentStatus ==
-                                                      'in_progress' &&
-                                                  canPickItems,
-                                              onUpdated: _load,
-                                              index: absoluteIndexOf[item] ?? (i + 1),
-                                            );
-                                          },
-                                          childCount: filtered.length,
+                                    for (final entry in listEntries.whereType<_CategoryEntry>()) ...[
+                                      SliverToBoxAdapter(
+                                        child: _CategoryHeader(
+                                          name: entry.name,
+                                          total: entry.total,
+                                          actioned: entry.actioned,
+                                          collapsed: _collapsedCategories.contains(entry.name),
+                                          onToggle: () => setState(() {
+                                            if (_collapsedCategories.contains(entry.name)) {
+                                              _collapsedCategories.remove(entry.name);
+                                            } else {
+                                              _collapsedCategories.add(entry.name);
+                                            }
+                                          }),
                                         ),
                                       ),
-                                    ),
-                                    const SliverToBoxAdapter(
-                                      child: SizedBox(height: 130),
-                                    ),
+                                      if (!_collapsedCategories.contains(entry.name)) ...[
+                                        SliverPadding(
+                                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                                          sliver: SliverGrid(
+                                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                              crossAxisCount: columns,
+                                              mainAxisSpacing: 12,
+                                              crossAxisSpacing: 12,
+                                              mainAxisExtent: 200,
+                                            ),
+                                            delegate: SliverChildBuilderDelegate(
+                                              (ctx, gi) {
+                                                final catItems = filtered
+                                                    .where((it) => it.displayCategory == entry.name)
+                                                    .toList();
+                                                final item = catItems[gi];
+                                                return _ItemCard(
+                                                  item: item,
+                                                  assignmentId: _assignmentId ?? '',
+                                                  canAct: _currentStatus == 'in_progress' && canPickItems,
+                                                  onUpdated: _load,
+                                                  index: absoluteIndexOf[item] ?? (gi + 1),
+                                                );
+                                              },
+                                              childCount: filtered
+                                                  .where((it) => it.displayCategory == entry.name)
+                                                  .length,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                    const SliverToBoxAdapter(child: SizedBox(height: 130)),
                                   ],
                                 ),
                               ),
@@ -717,6 +791,111 @@ class _EmptyFilter extends StatelessWidget {
             Text(subtitle,
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13, height: 1.4)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Category section header — collapsible
+// ─────────────────────────────────────────────────────────────────────────────
+class _CategoryHeader extends StatelessWidget {
+  final String name;
+  final int total;
+  final int actioned;
+  final bool collapsed;
+  final VoidCallback onToggle;
+
+  const _CategoryHeader({
+    required this.name,
+    required this.total,
+    required this.actioned,
+    required this.collapsed,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final done = actioned >= total && total > 0;
+    final accent = done ? const Color(0xFF16A34A) : const Color(0xFF1565C0);
+
+    return GestureDetector(
+      onTap: onToggle,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(0, 16, 0, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: done
+              ? const Color(0xFFF0FDF4)
+              : const Color(0xFFEFF6FF),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: accent.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                done ? Icons.check_circle_rounded : Icons.category_rounded,
+                size: 18,
+                color: accent,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: accent,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    '$actioned of $total item${total == 1 ? '' : 's'} actioned',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: accent.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Progress pill
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                total > 0 ? '${((actioned / total) * 100).round()}%' : '0%',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: accent,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              collapsed ? Icons.expand_more_rounded : Icons.expand_less_rounded,
+              color: accent.withValues(alpha: 0.6),
+              size: 22,
+            ),
           ],
         ),
       ),
