@@ -8,6 +8,7 @@ import '../screens/manager/manager_home_screen.dart';
 import '../screens/picker/picker_home_screen.dart';
 import '../screens/super_admin/super_admin_home_screen.dart';
 import '../services/notification_service.dart';
+import '../services/update_service.dart';
 import '../utils/app_constants.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -56,6 +57,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       // notifyListeners once it lands). Backend 403 is the hard gate meanwhile.
       auth.refresh(force: true);
       final user = auth.user!;
+
+      // Capture navigator context before pushReplacement disposes this widget
+      final nav = Navigator.of(context);
+
       if (user.isAdmin) {
         _go(const SuperAdminHomeScreen());
       } else if (user.isManager) {
@@ -63,6 +68,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       } else {
         _go(const PickerHomeScreen());
       }
+
+      // Check for in-app update after the home screen is fully rendered.
+      // We use nav.context (the Navigator widget's context) because this
+      // widget's context becomes invalid after pushReplacement.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        UpdateService.check(nav.context);
+      });
       return;
     }
 

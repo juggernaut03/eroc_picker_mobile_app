@@ -59,6 +59,18 @@ class ApiService {
     return _handle(response);
   }
 
+  /// Unauthenticated GET — for public endpoints like /app/version.
+  static Future<Map<String, dynamic>?> getRaw(String path) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl$path'),
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    return null;
+  }
+
   static Map<String, dynamic> _handle(http.Response response) {
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     if (response.statusCode >= 200 && response.statusCode < 300) {
