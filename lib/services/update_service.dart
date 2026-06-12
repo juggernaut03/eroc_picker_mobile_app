@@ -18,6 +18,7 @@ class UpdateService {
       if (channel != 'apk' && channel != 'store') return;
 
       final info = await PackageInfo.fromPlatform();
+      if (!context.mounted) return;
 
       if (channel == 'apk') {
         await _checkApk(context, res, info);
@@ -188,7 +189,22 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           sendTimeout: const Duration(seconds: 30),
         ),
       );
-      await OpenFilex.open(savePath);
+
+      final result = await OpenFilex.open(savePath);
+      if (!mounted) return;
+
+      // Always reset _downloading so the button works again if the user
+      // cancels the installer and returns to the dialog.
+      if (result.type == ResultType.done) {
+        setState(() => _downloading = false);
+      } else {
+        setState(() {
+          _downloading = false;
+          _error = result.type == ResultType.permissionDenied
+              ? 'Install permission denied. Enable "Install unknown apps" in Settings.'
+              : 'Could not open installer: ${result.message}';
+        });
+      }
     } on DioException catch (e) {
       if (mounted) setState(() { _error = e.message ?? 'Download failed. Check your connection.'; _downloading = false; });
     } catch (e) {
