@@ -10,56 +10,87 @@ import 'api_service.dart';
 class UpdateService {
   static Future<void> check(BuildContext context) async {
     try {
-      final info = await PackageInfo.fromPlatform();
       final res = await ApiService.getRaw('/app/version');
       if (res == null) return;
 
-      final isAndroid = Platform.isAndroid;
+      // Admin controls which channel is active — if not apk or store, skip entirely
+      final channel = res['update_channel'] as String? ?? 'none';
+      if (channel != 'apk' && channel != 'store') return;
 
-      final latestVer = isAndroid
-          ? (res['android_latest_version'] as String? ?? '')
-          : (res['ios_latest_version'] as String? ?? '');
-      final reviewVer = isAndroid
-          ? (res['android_review_version'] as String? ?? '')
-          : (res['ios_review_version'] as String? ?? '');
-      final storeUrl = isAndroid
-          ? (res['play_store_url'] as String? ?? '')
-          : (res['app_store_url'] as String? ?? '');
-      final apkUrl = res['apk_url'] as String? ?? '';
-      final force = res['force_update'] as bool? ?? false;
-      final versionName = res['version_name'] as String? ?? '';
-      final releaseNotes = res['release_notes'] as String? ?? '';
+      final info = await PackageInfo.fromPlatform();
 
-      // Skip if the reviewer is currently testing this exact version
-      if (reviewVer.isNotEmpty && reviewVer == info.version) return;
-
-      bool needsUpdate = false;
-      if (latestVer.isNotEmpty) {
-        needsUpdate = _isNewer(latestVer, info.version);
-      } else if (isAndroid && apkUrl.isNotEmpty) {
-        // No store version configured — fall back to version_code for APK flow
-        final serverCode = (res['version_code'] as num?)?.toInt() ?? 0;
-        final currentCode = int.tryParse(info.buildNumber) ?? 0;
-        needsUpdate = serverCode > currentCode;
+      if (channel == 'apk') {
+        await _checkApk(context, res, info);
+      } else {
+        await _checkStore(context, res, info);
       }
-
-      if (!needsUpdate || !context.mounted) return;
-
-      _show(
-        context,
-        versionName: latestVer.isNotEmpty ? latestVer : versionName,
-        releaseNotes: releaseNotes,
-        force: force,
-        // Store redirect takes priority; APK download only when no store URL
-        storeUrl: storeUrl.isNotEmpty ? storeUrl : null,
-        apkUrl: (isAndroid && storeUrl.isEmpty && apkUrl.isNotEmpty) ? apkUrl : null,
-      );
     } catch (_) {
       // Silent — update check must never crash the app
     }
   }
 
-  /// Returns true if version string `a` is newer than `b` (e.g. "1.2.0" > "1.1.5").
+  // ── APK channel ────────────────────────────────────────────────────────────
+  static Future<void> _checkApk(
+    BuildContext context,
+    Map<String, dynamic> res,
+    PackageInfo info,
+  ) async {
+    final serverCode = (res['version_code'] as num?)?.toInt() ?? 0;
+    final currentCode = int.tryParse(info.buildNumber) ?? 0;
+    if (serverCode <= currentCode) return;
+
+    final apkUrl = res['apk_url'] as String? ?? '';
+    if (apkUrl.isEmpty) return;
+
+    if (!context.mounted) return;
+    _show(
+      context,
+      versionName: res['version_name'] as String? ?? '',
+      releaseNotes: res['release_notes'] as String? ?? '',
+      force: res['apk_force_update'] as bool? ?? false,
+      storeUrl: null,
+      apkUrl: apkUrl,
+    );
+  }
+
+  // ── Store channel ──────────────────────────────────────────────────────────
+  static Future<void> _checkStore(
+    BuildContext context,
+    Map<String, dynamic> res,
+    PackageInfo info,
+  ) async {
+    final isAndroid = Platform.isAndroid;
+
+    final latestVer = isAndroid
+        ? (res['android_latest_version'] as String? ?? '')
+        : (res['ios_latest_version'] as String? ?? '');
+    if (latestVer.isEmpty) return;
+
+    // Skip if this exact version is under review (protects store reviewers)
+    final reviewVer = isAndroid
+        ? (res['android_review_version'] as String? ?? '')
+        : (res['ios_review_version'] as String? ?? '');
+    if (reviewVer.isNotEmpty && reviewVer == info.version) return;
+
+    if (!_isNewer(latestVer, info.version)) return;
+
+    final storeUrl = isAndroid
+        ? (res['play_store_url'] as String? ?? '')
+        : (res['app_store_url'] as String? ?? '');
+    if (storeUrl.isEmpty) return;
+
+    if (!context.mounted) return;
+    _show(
+      context,
+      versionName: latestVer,
+      releaseNotes: res['release_notes'] as String? ?? '',
+      force: res['store_force_update'] as bool? ?? false,
+      storeUrl: storeUrl,
+      apkUrl: null,
+    );
+  }
+
+  /// Returns true if version string `a` is strictly newer than `b`.
   static bool _isNewer(String a, String b) {
     final av = a.split('.').map((s) => int.tryParse(s) ?? 0).toList();
     final bv = b.split('.').map((s) => int.tryParse(s) ?? 0).toList();
@@ -98,11 +129,12 @@ class UpdateService {
   }
 }
 
+// ── Dialog ─────────────────────────────────────────────────────────────────────
 class _UpdateDialog extends StatefulWidget {
   final String versionName, releaseNotes;
   final bool force;
-  final String? storeUrl; // non-null → open store
-  final String? apkUrl;  // non-null → in-app download
+  final String? storeUrl;
+  final String? apkUrl;
 
   const _UpdateDialog({
     required this.versionName,
@@ -121,18 +153,22 @@ class _UpdateDialogState extends State<_UpdateDialog> {
   bool _downloading = false;
   String? _error;
 
-  bool get _isStoreUpdate => widget.storeUrl != null;
+  bool get _isStore => widget.storeUrl != null;
+
+  String get _storeName {
+    if (widget.storeUrl == null) return 'Store';
+    if (widget.storeUrl!.contains('play.google')) return 'Google Play';
+    if (widget.storeUrl!.contains('apple.com')) return 'App Store';
+    return 'Store';
+  }
 
   Future<void> _openStore() async {
     final uri = Uri.tryParse(widget.storeUrl!);
-    if (uri == null) {
-      setState(() => _error = 'Invalid store URL');
-      return;
-    }
+    if (uri == null) { setState(() => _error = 'Invalid store URL'); return; }
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
-      setState(() => _error = 'Could not open store. Please update manually.');
+      setState(() => _error = 'Could not open $_storeName. Please update manually.');
     }
   }
 
@@ -160,13 +196,6 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     }
   }
 
-  String get _storeName {
-    if (widget.storeUrl == null) return 'Store';
-    if (widget.storeUrl!.contains('play.google')) return 'Google Play';
-    if (widget.storeUrl!.contains('apple.com')) return 'App Store';
-    return 'Store';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -181,14 +210,16 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             Container(
               width: 64, height: 64,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1D4ED8), Color(0xFF6C3CE1)],
+                gradient: LinearGradient(
+                  colors: _isStore
+                      ? const [Color(0xFF4F46E5), Color(0xFF7C3AED)]
+                      : const [Color(0xFF1D4ED8), Color(0xFF6C3CE1)],
                   begin: Alignment.topLeft, end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Icon(
-                _isStoreUpdate ? Icons.storefront_rounded : Icons.system_update_rounded,
+                _isStore ? Icons.storefront_rounded : Icons.system_update_rounded,
                 color: Colors.white, size: 32,
               ),
             ),
@@ -200,7 +231,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             ),
             const SizedBox(height: 6),
             Text(
-              _isStoreUpdate
+              _isStore
                   ? 'Version ${widget.versionName} is available on $_storeName.'
                   : 'Version ${widget.versionName} is ready to install.',
               textAlign: TextAlign.center,
@@ -243,8 +274,8 @@ class _UpdateDialogState extends State<_UpdateDialog> {
 
             const SizedBox(height: 20),
 
-            // APK download progress (only for in-app APK flow)
-            if (!_isStoreUpdate && _downloading) ...[
+            // Download progress (APK only)
+            if (!_isStore && _downloading) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: LinearProgressIndicator(
@@ -274,7 +305,6 @@ class _UpdateDialogState extends State<_UpdateDialog> {
               const SizedBox(height: 12),
             ],
 
-            // Buttons
             Row(
               children: [
                 if (!widget.force && !_downloading) ...[
@@ -286,7 +316,8 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         side: const BorderSide(color: Color(0xFFE2E8F0)),
                       ),
-                      child: const Text('Later', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                      child: const Text('Later',
+                          style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -294,9 +325,9 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(
-                    onPressed: _downloading ? null : (_isStoreUpdate ? _openStore : _downloadApk),
+                    onPressed: _downloading ? null : (_isStore ? _openStore : _downloadApk),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1D4ED8),
+                      backgroundColor: _isStore ? const Color(0xFF4F46E5) : const Color(0xFF1D4ED8),
                       disabledBackgroundColor: const Color(0xFFE2E8F0),
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -308,17 +339,14 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              if (_isStoreUpdate) ...[
-                                const Icon(Icons.open_in_new_rounded, size: 16, color: Colors.white),
+                              if (_isStore) ...[
+                                const Icon(Icons.open_in_new_rounded, size: 15, color: Colors.white),
                                 const SizedBox(width: 6),
                               ],
                               Text(
-                                _error != null
-                                    ? 'Retry'
-                                    : _isStoreUpdate
-                                        ? 'Open $_storeName'
-                                        : 'Update Now',
-                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.white),
+                                _error != null ? 'Retry' : _isStore ? 'Open $_storeName' : 'Update Now',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700, fontSize: 15, color: Colors.white),
                               ),
                             ],
                           ),
