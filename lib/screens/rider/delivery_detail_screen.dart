@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/rider_location_tracker.dart';
 import '../../services/rider_service.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/delivery_map_preview.dart';
@@ -27,7 +26,6 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
   bool _otpRequired = false;
   late DeliveryAssignment _assignment;
   Order? _order;
-  Timer? _locationTimer;
 
   @override
   void initState() {
@@ -39,22 +37,16 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
 
   @override
   void dispose() {
-    _locationTimer?.cancel();
     super.dispose();
   }
 
-  void _syncLocationPing() {
-    _locationTimer?.cancel();
-    if (_assignment.status != 'out_for_delivery') return;
-    _pingLocation();
-    _locationTimer = Timer.periodic(const Duration(seconds: 45), (_) => _pingLocation());
-  }
-
-  Future<void> _pingLocation() async {
+  Future<void> _syncLocationPing() async {
     try {
-      final pos = await Geolocator.getCurrentPosition();
-      await RiderService.updateLocation(pos.latitude, pos.longitude);
-    } catch (_) {}
+      final list = await RiderService.getMyDeliveries();
+      await RiderLocationTracker.syncWithDeliveries(list);
+    } catch (_) {
+      await RiderLocationTracker.syncWithDeliveries([_assignment]);
+    }
   }
 
   Future<void> _load() async {

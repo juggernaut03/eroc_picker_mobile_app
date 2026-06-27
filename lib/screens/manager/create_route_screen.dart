@@ -5,6 +5,7 @@ import '../../models/delivery_route_model.dart';
 import '../../models/order_model.dart';
 import '../../services/manager_service.dart';
 import '../../utils/app_theme.dart';
+import '../../widgets/delivery_map_preview.dart';
 
 class CreateRouteScreen extends StatefulWidget {
   const CreateRouteScreen({super.key});
@@ -187,7 +188,8 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            '~${_suggestion!.estimatedDurationMin} min · ${_suggestion!.estimatedDistanceKm.toStringAsFixed(1)} km',
+                            '~${_suggestion!.estimatedDurationMin} min · ${_suggestion!.estimatedDistanceKm.toStringAsFixed(1)} km'
+                            '${_suggestion!.etaSource == 'google_traffic' ? ' · Google traffic' : ''}',
                             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                           ),
                         ),
@@ -195,6 +197,18 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                       ],
                     ),
                   ),
+                if (_suggestion != null && _stopOrder.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: DeliveryMapPreview.fromPolylineJson(
+                      null,
+                      null,
+                      _suggestion!.polyline,
+                      height: 140,
+                    ),
+                  ),
+                ],
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                   child: Row(

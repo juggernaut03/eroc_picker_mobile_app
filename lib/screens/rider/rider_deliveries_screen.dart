@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../models/delivery_route_model.dart';
 import '../../models/order_model.dart';
+import '../../services/rider_location_tracker.dart';
 import '../../services/rider_service.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/status_badge.dart';
@@ -38,6 +39,7 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
           _all = results[0] as List<DeliveryAssignment>;
           _activeRoute = results[1] as DeliveryRoute?;
         });
+        await RiderLocationTracker.syncWithDeliveries(_all);
       }
     } catch (e) {
       if (mounted) {

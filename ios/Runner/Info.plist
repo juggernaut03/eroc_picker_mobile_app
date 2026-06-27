@@ -30,6 +30,16 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera is used to scan barcodes on products during order picking.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Location is used for delivery navigation and live tracking while you deliver orders.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Background location is shared with managers only while you have active deliveries.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+		<string>location</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -53,11 +63,6 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>fetch</string>
-		<string>remote-notification</string>
-	</array>
 	<key>UIDeviceFamily</key>
 	<array>
 		<integer>1</integer>

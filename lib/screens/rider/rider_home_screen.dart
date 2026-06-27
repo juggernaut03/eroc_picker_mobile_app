@@ -36,6 +36,7 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
   @override
   void dispose() {
     _pollTimer?.cancel();
+    RiderLocationTracker.stop();
     super.dispose();
   }
 

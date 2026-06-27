@@ -24,11 +24,28 @@ class _OrdersTabState extends State<OrdersTab> with SingleTickerProviderStateMix
   bool _loading = false;
   List<Order> _allOrders = [];
   String? _activeFilter;
-  // First day of the currently selected month — used to filter orders by orderDate.
+  bool _deliveryView = false;
   late DateTime _selectedMonth = _firstOfMonth(DateTime.now());
 
   final List<String?> _statuses = [null, 'pending', 'assigned', 'in_progress', 'completed', 'rejected'];
   final List<String> _labels = ['All', 'Pending', 'Assigned', 'In Progress', 'Completed', 'Rejected'];
+
+  final List<String?> _deliveryStatuses = [
+    null,
+    'ready_for_delivery',
+    'assigned',
+    'out_for_delivery',
+    'delivered',
+    'failed',
+  ];
+  final List<String> _deliveryLabels = [
+    'All',
+    'Ready',
+    'Assigned',
+    'Out',
+    'Delivered',
+    'Failed',
+  ];
 
   static DateTime _firstOfMonth(DateTime d) => DateTime(d.year, d.month);
 
@@ -94,7 +111,17 @@ class _OrdersTabState extends State<OrdersTab> with SingleTickerProviderStateMix
     return status == null ? base : base.where((o) => o.status == status).toList();
   }
 
+  List<Order> _deliveryFiltered(String? deliveryStatus) {
+    final base = _monthScoped.where((o) => o.status == 'completed').toList();
+    if (deliveryStatus == null) {
+      return base.where((o) => o.deliveryStatus != null && o.deliveryStatus!.isNotEmpty).toList();
+    }
+    return base.where((o) => o.deliveryStatus == deliveryStatus).toList();
+  }
+
   int _count(String? status) => _filtered(status).length;
+
+  int _deliveryCount(String? deliveryStatus) => _deliveryFiltered(deliveryStatus).length;
 
   @override
   Widget build(BuildContext context) {
@@ -151,22 +178,47 @@ class _OrdersTabState extends State<OrdersTab> with SingleTickerProviderStateMix
               ),
               child: Column(
                 children: [
-                  // Filter chip row
+                  if (cap('can_view_delivery_status'))
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: SegmentedButton<bool>(
+                        segments: const [
+                          ButtonSegment(value: false, label: Text('Picking'), icon: Icon(Icons.inventory_2_outlined, size: 18)),
+                          ButtonSegment(value: true, label: Text('Delivery'), icon: Icon(Icons.local_shipping_outlined, size: 18)),
+                        ],
+                        selected: {_deliveryView},
+                        onSelectionChanged: (s) {
+                          setState(() {
+                            _deliveryView = s.first;
+                            _activeFilter = null;
+                          });
+                        },
+                        style: ButtonStyle(
+                          visualDensity: VisualDensity.compact,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ),
                   _FilterBar(
-                    statuses: _statuses,
-                    labels: _labels,
+                    statuses: _deliveryView ? _deliveryStatuses : _statuses,
+                    labels: _deliveryView ? _deliveryLabels : _labels,
                     selected: _activeFilter,
-                    counts: {for (final s in _statuses) s: _count(s)},
+                    counts: {
+                      for (final s in (_deliveryView ? _deliveryStatuses : _statuses))
+                        s: _deliveryView ? _deliveryCount(s) : _count(s),
+                    },
                     onSelect: (s) => setState(() => _activeFilter = s),
                   ),
 
-                  // Order list
                   Expanded(
                     child: _loading
                         ? const Center(child: CircularProgressIndicator(color: Color(0xFF6C3CE1)))
                         : _OrderList(
-                            orders: _filtered(_activeFilter),
+                            orders: _deliveryView
+                                ? _deliveryFiltered(_activeFilter)
+                                : _filtered(_activeFilter),
                             onRefresh: _loadAll,
+                            showDeliveryBadge: _deliveryView,
                           ),
                   ),
                 ],
@@ -652,8 +704,13 @@ class _FilterBar extends StatelessWidget {
 class _OrderList extends StatelessWidget {
   final List<Order> orders;
   final VoidCallback onRefresh;
+  final bool showDeliveryBadge;
 
-  const _OrderList({required this.orders, required this.onRefresh});
+  const _OrderList({
+    required this.orders,
+    required this.onRefresh,
+    this.showDeliveryBadge = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -693,7 +750,7 @@ class _OrderList extends StatelessWidget {
               itemCount: orders.length,
               itemBuilder: (ctx, i) => Padding(
                 padding: const EdgeInsets.only(bottom: 14),
-                child: _OrderCard(order: orders[i], onRefresh: onRefresh),
+                child: _OrderCard(order: orders[i], onRefresh: onRefresh, showDeliveryBadge: showDeliveryBadge),
               ),
             );
           }
@@ -711,7 +768,7 @@ class _OrderList extends StatelessWidget {
                 ),
                 itemCount: orders.length,
                 itemBuilder: (ctx, i) =>
-                    _OrderCard(order: orders[i], onRefresh: onRefresh),
+                    _OrderCard(order: orders[i], onRefresh: onRefresh, showDeliveryBadge: showDeliveryBadge),
               ),
             ),
           );
@@ -727,8 +784,13 @@ class _OrderList extends StatelessWidget {
 class _OrderCard extends StatelessWidget {
   final Order order;
   final VoidCallback onRefresh;
+  final bool showDeliveryBadge;
 
-  const _OrderCard({required this.order, required this.onRefresh});
+  const _OrderCard({
+    required this.order,
+    required this.onRefresh,
+    this.showDeliveryBadge = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -772,8 +834,11 @@ class _OrderCard extends StatelessWidget {
                                   color: Color(0xFF0F172A)),
                             ),
                           ),
-                          StatusBadge(order.status, small: true),
-                          if (order.deliveryStatus != null) ...[
+                          if (showDeliveryBadge && order.deliveryStatus != null)
+                            StatusBadge(order.deliveryStatus!, small: true),
+                          if (!showDeliveryBadge || order.deliveryStatus == null)
+                            StatusBadge(order.status, small: true),
+                          if (!showDeliveryBadge && order.deliveryStatus != null) ...[
                             const SizedBox(width: 6),
                             StatusBadge(order.deliveryStatus!, small: true),
                           ],

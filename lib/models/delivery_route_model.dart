@@ -96,12 +96,16 @@ class RouteSuggestion {
   final int estimatedDurationMin;
   final double estimatedDistanceKm;
   final String? mapsUrl;
+  final String? etaSource;
+  final List<Map<String, dynamic>> polyline;
 
   RouteSuggestion({
     required this.stopOrder,
     required this.estimatedDurationMin,
     required this.estimatedDistanceKm,
     this.mapsUrl,
+    this.etaSource,
+    this.polyline = const [],
   });
 
   factory RouteSuggestion.fromJson(Map<String, dynamic> json) {
@@ -110,6 +114,8 @@ class RouteSuggestion {
       estimatedDurationMin: json['estimated_duration_min'] ?? 0,
       estimatedDistanceKm: (json['estimated_distance_km'] as num?)?.toDouble() ?? 0,
       mapsUrl: json['maps_url'],
+      etaSource: json['eta_source'],
+      polyline: List<Map<String, dynamic>>.from(json['polyline'] ?? []),
     );
   }
 }
