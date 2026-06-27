@@ -11,6 +11,7 @@ class Order {
   final bool sentToSuperAdmin;
   final DateTime? sentToSuperAdminAt;
   final String? deliveryStatus;
+  final String? deliverySlot;
   final String? deliveryDetails;
   final String? latitude;
   final String? longitude;
@@ -29,6 +30,7 @@ class Order {
     this.sentToSuperAdmin = false,
     this.sentToSuperAdminAt,
     this.deliveryStatus,
+    this.deliverySlot,
     this.deliveryDetails,
     this.latitude,
     this.longitude,
@@ -54,6 +56,7 @@ class Order {
             ? DateTime.tryParse(json['sent_to_super_admin_at'].toString())
             : null,
         deliveryStatus: json['delivery_status'],
+        deliverySlot: json['delivery_slot'],
         deliveryDetails: json['delivery_details'],
         latitude: json['latitude']?.toString(),
         longitude: json['longitude']?.toString(),
@@ -166,6 +169,8 @@ class DeliveryAssignment {
   final Order? order;
   final List<String> podPhotoUrls;
   final String? podNotes;
+  final String? routeId;
+  final int? stopSequence;
 
   DeliveryAssignment({
     required this.id,
@@ -181,6 +186,8 @@ class DeliveryAssignment {
     this.order,
     this.podPhotoUrls = const [],
     this.podNotes,
+    this.routeId,
+    this.stopSequence,
   });
 
   factory DeliveryAssignment.fromJson(Map<String, dynamic> json) {
@@ -202,6 +209,8 @@ class DeliveryAssignment {
       order: json['order'] != null ? Order.fromJson(json['order']) : null,
       podPhotoUrls: List<String>.from(pod?['photo_urls'] ?? []),
       podNotes: pod?['notes'],
+      routeId: json['route_id']?.toString(),
+      stopSequence: json['stop_sequence'],
     );
   }
 }

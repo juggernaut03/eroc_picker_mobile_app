@@ -1,13 +1,19 @@
 import '../models/order_model.dart';
 import '../models/item_model.dart';
 import '../models/notification_model.dart';
+import '../models/delivery_route_model.dart';
 import 'api_service.dart';
 
 class ManagerService {
-  static Future<List<Order>> getAllOrders({String? status, String? storeCode}) async {
+  static Future<List<Order>> getAllOrders({
+    String? status,
+    String? storeCode,
+    String? deliveryStatus,
+  }) async {
     final params = <String, String>{};
     if (status != null) params['status'] = status;
     if (storeCode != null) params['store_code'] = storeCode;
+    if (deliveryStatus != null) params['delivery_status'] = deliveryStatus;
     final query = params.isNotEmpty
         ? '?${params.entries.map((e) => '${e.key}=${e.value}').join('&')}'
         : '';
@@ -166,5 +172,42 @@ class ManagerService {
 
   static Future<void> markAllNotificationsRead() async {
     await ApiService.patch('/manager/notifications/all/read', {});
+  }
+
+  static Future<RouteSuggestion> suggestRouteOrder({
+    required List<int> ordersIdorders,
+    List<int>? stopOrder,
+  }) async {
+    final res = await ApiService.post('/manager/delivery-routes/suggest-order', {
+      'orders_idorders': ordersIdorders,
+      if (stopOrder != null) 'stop_order': stopOrder,
+    });
+    return RouteSuggestion.fromJson(res['data'] as Map<String, dynamic>);
+  }
+
+  static Future<DeliveryRoute> createDeliveryRoute({
+    required List<int> ordersIdorders,
+    required String riderId,
+    List<int>? stopOrder,
+  }) async {
+    final res = await ApiService.post('/manager/delivery-routes', {
+      'orders_idorders': ordersIdorders,
+      'rider_id': riderId,
+      if (stopOrder != null) 'stop_order': stopOrder,
+    });
+    final data = res['data'] as Map<String, dynamic>;
+    return DeliveryRoute.fromJson(data['route'] as Map<String, dynamic>);
+  }
+
+  static Future<List<DeliveryRoute>> getDeliveryRoutes({String? status}) async {
+    final query = status != null ? '?status=$status' : '';
+    final res = await ApiService.get('/manager/delivery-routes$query');
+    final list = res['data'] as List? ?? [];
+    return list.map((e) => DeliveryRoute.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  static Future<DeliveryRoute> getDeliveryRoute(String routeId) async {
+    final res = await ApiService.get('/manager/delivery-routes/$routeId');
+    return DeliveryRoute.fromJson(res['data'] as Map<String, dynamic>);
   }
 }

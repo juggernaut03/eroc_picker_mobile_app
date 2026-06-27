@@ -213,6 +213,14 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
               Text(_assignment.storeCode, style: const TextStyle(color: AppTheme.textSecondary)),
             ],
           ),
+          if (_assignment.stopSequence != null) ...[
+            const SizedBox(height: 8),
+            Chip(
+              avatar: const Icon(Icons.route, size: 16),
+              label: Text('Stop ${_assignment.stopSequence} on route'),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
           const SizedBox(height: 16),
           if (order?.deliveryDetails != null)
             Text(order!.deliveryDetails!, style: const TextStyle(fontSize: 15)),

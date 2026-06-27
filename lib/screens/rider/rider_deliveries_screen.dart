@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../models/delivery_route_model.dart';
 import '../../models/order_model.dart';
 import '../../services/rider_service.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/status_badge.dart';
 import 'delivery_detail_screen.dart';
+import 'rider_route_screen.dart';
 
 class RiderDeliveriesScreen extends StatefulWidget {
   const RiderDeliveriesScreen({super.key});
@@ -16,6 +18,7 @@ class RiderDeliveriesScreen extends StatefulWidget {
 class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
   bool _loading = false;
   List<DeliveryAssignment> _all = [];
+  DeliveryRoute? _activeRoute;
 
   @override
   void initState() {
@@ -26,8 +29,16 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final list = await RiderService.getMyDeliveries();
-      if (mounted) setState(() => _all = list);
+      final results = await Future.wait([
+        RiderService.getMyDeliveries(),
+        RiderService.getActiveRoute(),
+      ]);
+      if (mounted) {
+        setState(() {
+          _all = results[0] as List<DeliveryAssignment>;
+          _activeRoute = results[1] as DeliveryRoute?;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -65,6 +76,58 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
               ),
             ),
           ),
+          if (_activeRoute != null && !_loading)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RiderRouteScreen(route: _activeRoute!),
+                        ),
+                      );
+                      _load();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.route, color: AppTheme.primary),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Active route',
+                                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                                Text(
+                                  '${_activeRoute!.stops.length} stops · ~${_activeRoute!.estimatedDurationMin ?? '?'} min',
+                                  style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (_loading)
             const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
           else if (_all.isEmpty)
@@ -111,6 +174,18 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
                                     StatusBadge(a.status, small: true),
                                   ],
                                 ),
+                                if (a.stopSequence != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      'Stop ${a.stopSequence} of route',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
                                 const SizedBox(height: 8),
                                 if (order?.deliveryDetails != null)
                                   Text(

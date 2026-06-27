@@ -2,6 +2,7 @@ import 'dart:io';
 
 import '../models/order_model.dart';
 import '../models/notification_model.dart';
+import '../models/delivery_route_model.dart';
 import 'api_service.dart';
 
 class RiderService {
@@ -70,5 +71,17 @@ class RiderService {
 
   static Future<void> markNotificationRead(String id) async {
     await ApiService.patch('/rider/notifications/$id/read', {});
+  }
+
+  static Future<DeliveryRoute?> getActiveRoute() async {
+    final res = await ApiService.get('/rider/routes/active');
+    final data = res['data'];
+    if (data == null) return null;
+    return DeliveryRoute.fromJson(data as Map<String, dynamic>);
+  }
+
+  static Future<DeliveryRoute> getRoute(String routeId) async {
+    final res = await ApiService.get('/rider/routes/$routeId');
+    return DeliveryRoute.fromJson(res['data'] as Map<String, dynamic>);
   }
 }

@@ -9,6 +9,7 @@ import '../../utils/helpers.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/status_badge.dart';
 import 'order_detail_screen.dart';
+import 'create_route_screen.dart';
 import '../auth/login_screen.dart';
 
 class OrdersTab extends StatefulWidget {
@@ -98,6 +99,8 @@ class _OrdersTabState extends State<OrdersTab> with SingleTickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final ui = context.watch<AuthProvider>().uiConfig;
+    bool cap(String key) => ui == null ? true : ui.can(key);
     final total = _monthScoped.length;
     final pending = _count('pending');
     final inProgress = _count('in_progress');
@@ -107,6 +110,20 @@ class _OrdersTabState extends State<OrdersTab> with SingleTickerProviderStateMix
 
     return Scaffold(
       backgroundColor: const Color(0xFF6C3CE1),
+      floatingActionButton: cap('can_create_delivery_route')
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                final created = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CreateRouteScreen()),
+                );
+                if (created == true) _loadAll();
+              },
+              backgroundColor: const Color(0xFF6C3CE1),
+              icon: const Icon(Icons.route),
+              label: const Text('Route'),
+            )
+          : null,
       body: Column(
         children: [
           // ── Hero header ──────────────────────────────────────────────
