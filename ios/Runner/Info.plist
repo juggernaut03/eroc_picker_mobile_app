@@ -81,5 +81,11 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<!-- Allow detecting installed navigation apps for rider hand-off -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>comgooglemaps</string>
+		<string>maps</string>
+	</array>
 </dict>
 </plist>

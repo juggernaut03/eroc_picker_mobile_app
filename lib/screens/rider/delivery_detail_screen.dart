@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
@@ -9,8 +7,8 @@ import '../../services/rider_location_tracker.dart';
 import '../../services/rider_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/geo_utils.dart';
-import '../../utils/osm_links.dart';
-import '../../widgets/delivery_map_preview.dart';
+import '../../utils/nav_launcher.dart';
+import '../../widgets/live_nav_map.dart';
 import '../../widgets/status_badge.dart';
 import 'pod_screen.dart';
 
@@ -26,6 +24,7 @@ class DeliveryDetailScreen extends StatefulWidget {
 class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
   bool _loading = false;
   bool _otpRequired = false;
+  bool _arrived = false;
   late DeliveryAssignment _assignment;
   Order? _order;
 
@@ -74,40 +73,30 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
   }
 
   Future<void> _openMaps() async {
-    final lat = _order?.latitude;
-    final lng = _order?.longitude;
-    if (lat == null || lng == null || lat.isEmpty || lng.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No delivery coordinates for this order')),
-      );
-      return;
-    }
-    Position? pos;
-    try {
-      pos = await Geolocator.getCurrentPosition();
-    } catch (_) {}
-
-    final dest = parseDeliveryLatLng(lat, lng);
+    final dest = parseDeliveryLatLng(_order?.latitude, _order?.longitude);
     if (dest == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid delivery coordinates')),
+        const SnackBar(content: Text('No valid delivery coordinates for this order')),
       );
       return;
     }
+    await NavLauncher.navigateTo(
+      context,
+      destLat: dest.latitude,
+      destLng: dest.longitude,
+      label: 'Order #${_assignment.ordersIdorders}',
+    );
+  }
 
-    final uri = Uri.parse(
-      OsmLinks.directionsUrl(
-        originLat: pos?.latitude,
-        originLng: pos?.longitude,
-        destLat: dest.latitude,
-        destLng: dest.longitude,
+  void _onArrived() {
+    if (_arrived || !mounted) return;
+    setState(() => _arrived = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("You've arrived at the delivery location"),
+        backgroundColor: AppTheme.success,
       ),
     );
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open maps')),
-      );
-    }
   }
 
   Future<void> _start() async {
@@ -209,7 +198,38 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
             ),
           ],
           const SizedBox(height: 16),
-          DeliveryMapPreview(latitude: order?.latitude, longitude: order?.longitude),
+          Builder(builder: (context) {
+            final dest = parseDeliveryLatLng(order?.latitude, order?.longitude);
+            if (dest == null) {
+              return Container(
+                height: 120,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.border),
+                ),
+                child: const Text('No delivery coordinates on this order',
+                    style: TextStyle(color: AppTheme.textSecondary)),
+              );
+            }
+            return LiveNavMap(
+              stops: [NavStop(point: dest, isCurrent: true)],
+              height: 260,
+              onArrived: _onArrived,
+            );
+          }),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: FilledButton.icon(
+              onPressed: _openMaps,
+              icon: const Icon(Icons.navigation_rounded),
+              label: const Text('Navigate'),
+              style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
+            ),
+          ),
           const SizedBox(height: 12),
           if (order?.deliveryDetails != null)
             Text(order!.deliveryDetails!, style: const TextStyle(fontSize: 15)),
@@ -221,12 +241,6 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
             const SizedBox(height: 4),
             Text('Slot: ${order!.deliverySlot}', style: const TextStyle(color: AppTheme.textSecondary)),
           ],
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _openMaps,
-            icon: const Icon(Icons.map_outlined),
-            label: const Text('Open in OpenStreetMap'),
-          ),
           if (_assignment.status == 'out_for_delivery') ...[
             const SizedBox(height: 12),
             const Row(
@@ -258,11 +272,30 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
                         ),
                       ),
                     if (_assignment.status == 'out_for_delivery' && cap('can_complete_delivery')) ...[
+                      if (_arrived)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.where_to_vote_rounded, size: 16, color: AppTheme.success),
+                              SizedBox(width: 6),
+                              Text('Arrived — ready to complete',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.success)),
+                            ],
+                          ),
+                        ),
                       SizedBox(
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton.icon(
                           onPressed: _loading ? null : _openPod,
+                          style: _arrived
+                              ? ElevatedButton.styleFrom(backgroundColor: AppTheme.success)
+                              : null,
                           icon: const Icon(Icons.check_circle_outline),
                           label: const Text('Complete with POD'),
                         ),

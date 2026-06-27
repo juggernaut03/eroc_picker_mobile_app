@@ -3,7 +3,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/delivery_route_model.dart';
 import '../../utils/app_theme.dart';
-import '../../widgets/delivery_map_preview.dart';
+import '../../utils/geo_utils.dart';
+import '../../utils/nav_launcher.dart';
+import '../../widgets/live_nav_map.dart';
 import 'delivery_detail_screen.dart';
 
 class RiderRouteScreen extends StatelessWidget {
@@ -11,20 +13,49 @@ class RiderRouteScreen extends StatelessWidget {
 
   const RiderRouteScreen({super.key, required this.route});
 
+  /// Open the multi-stop route in a maps app if the backend provided a full
+  /// route URL; otherwise hand off turn-by-turn to the next pending stop.
   Future<void> _openFullRoute(BuildContext context) async {
     final url = route.mapsUrl;
-    if (url == null || url.isEmpty) {
+    if (url != null && url.isNotEmpty) {
+      final uri = Uri.parse(url);
+      if (await launchUrl(uri, mode: LaunchMode.externalApplication)) return;
+    }
+    if (!context.mounted) return;
+
+    final next = route.currentStop ??
+        route.stops.firstWhere(
+          (s) => s.status == 'pending',
+          orElse: () => route.stops.first,
+        );
+    final dest = parseDeliveryLatLng(next.latitude, next.longitude);
+    if (dest == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No maps URL for this route')),
+        const SnackBar(content: Text('No valid coordinates for the next stop')),
       );
       return;
     }
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open maps')),
-      );
+    await NavLauncher.navigateTo(
+      context,
+      destLat: dest.latitude,
+      destLng: dest.longitude,
+      label: 'Stop ${next.sequence}',
+    );
+  }
+
+  List<NavStop> _navStops() {
+    final out = <NavStop>[];
+    for (final s in route.stops) {
+      final p = parseDeliveryLatLng(s.latitude, s.longitude);
+      if (p == null) continue;
+      out.add(NavStop(
+        point: p,
+        sequence: s.sequence,
+        isDone: s.status == 'delivered',
+        isCurrent: route.currentStop?.ordersIdorders == s.ordersIdorders,
+      ));
     }
+    return out;
   }
 
   @override
@@ -64,11 +95,15 @@ class RiderRouteScreen extends StatelessWidget {
                     Text('Slot: ${route.deliverySlot}', style: const TextStyle(fontSize: 13)),
                   ],
                   const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: () => _openFullRoute(context),
-                    icon: const Icon(Icons.map_outlined),
-                    label: const Text('Navigate full route'),
-                    style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: FilledButton.icon(
+                      onPressed: () => _openFullRoute(context),
+                      icon: const Icon(Icons.navigation_rounded),
+                      label: const Text('Navigate to next stop'),
+                      style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
+                    ),
                   ),
                 ],
               ),
@@ -134,15 +169,11 @@ class RiderRouteScreen extends StatelessWidget {
               ),
             );
           }),
-          if (sorted.isNotEmpty && sorted.first.latitude != null) ...[
+          if (_navStops().isNotEmpty) ...[
             const SizedBox(height: 8),
-            const Text('Next stop map', style: TextStyle(fontWeight: FontWeight.w700)),
+            const Text('Route map', style: TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            DeliveryMapPreview(
-              latitude: route.currentStop?.latitude ?? sorted.first.latitude,
-              longitude: route.currentStop?.longitude ?? sorted.first.longitude,
-              height: 160,
-            ),
+            LiveNavMap(stops: _navStops(), height: 260),
           ],
         ],
       ),
