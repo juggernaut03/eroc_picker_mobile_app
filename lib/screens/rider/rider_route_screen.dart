@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/delivery_route_model.dart';
 import '../../utils/app_theme.dart';
+import '../../widgets/delivery_map_preview.dart';
 import 'delivery_detail_screen.dart';
 
 class RiderRouteScreen extends StatelessWidget {
@@ -133,6 +134,16 @@ class RiderRouteScreen extends StatelessWidget {
               ),
             );
           }),
+          if (sorted.isNotEmpty && sorted.first.latitude != null) ...[
+            const SizedBox(height: 8),
+            const Text('Next stop map', style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            DeliveryMapPreview(
+              latitude: route.currentStop?.latitude ?? sorted.first.latitude,
+              longitude: route.currentStop?.longitude ?? sorted.first.longitude,
+              height: 160,
+            ),
+          ],
         ],
       ),
     );

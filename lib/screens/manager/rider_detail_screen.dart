@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../models/order_model.dart';
+import '../../services/manager_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/status_badge.dart';
 
-class RiderDetailScreen extends StatelessWidget {
+class RiderDetailScreen extends StatefulWidget {
   final AssignedUser rider;
   final List<DeliveryAssignment> deliveries;
 
@@ -15,7 +16,30 @@ class RiderDetailScreen extends StatelessWidget {
   });
 
   @override
+  State<RiderDetailScreen> createState() => _RiderDetailScreenState();
+}
+
+class _RiderDetailScreenState extends State<RiderDetailScreen> {
+  Map<String, dynamic>? _location;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocation();
+  }
+
+  Future<void> _loadLocation() async {
+    try {
+      final list = await ManagerService.getRiderLocations();
+      final match = list.where((e) => e['rider_id']?.toString() == widget.rider.id).toList();
+      if (mounted && match.isNotEmpty) setState(() => _location = match.first);
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final rider = widget.rider;
+    final deliveries = widget.deliveries;
     final initials = rider.name.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase();
     final active = deliveries.where((d) => d.status == 'assigned' || d.status == 'out_for_delivery').length;
     final delivered = deliveries.where((d) => d.status == 'delivered').length;
@@ -56,6 +80,34 @@ class RiderDetailScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          if (_location != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.gps_fixed, color: AppTheme.primary, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Last GPS ping', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                        Text(
+                          '${_location!['last_location']['latitude']}, ${_location!['last_location']['longitude']}',
+                          style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           const SizedBox(height: 12),
           Row(
             children: [

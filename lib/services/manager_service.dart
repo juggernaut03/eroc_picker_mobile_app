@@ -210,4 +210,9 @@ class ManagerService {
     final res = await ApiService.get('/manager/delivery-routes/$routeId');
     return DeliveryRoute.fromJson(res['data'] as Map<String, dynamic>);
   }
+
+  static Future<List<Map<String, dynamic>>> getRiderLocations() async {
+    final res = await ApiService.get('/manager/riders/locations');
+    return List<Map<String, dynamic>>.from(res['data'] as List? ?? []);
+  }
 }

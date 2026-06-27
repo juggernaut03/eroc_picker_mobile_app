@@ -13,7 +13,7 @@ class RiderService {
     return list.map((e) => DeliveryAssignment.fromJson(e)).toList();
   }
 
-  static Future<({DeliveryAssignment assignment, Order? order})> getDeliveryDetail(
+  static Future<({DeliveryAssignment assignment, Order? order, bool otpRequired})> getDeliveryDetail(
     int ordersIdorders,
   ) async {
     final res = await ApiService.get('/rider/deliveries/$ordersIdorders');
@@ -21,6 +21,7 @@ class RiderService {
     return (
       assignment: DeliveryAssignment.fromJson(data['assignment']),
       order: data['order'] != null ? Order.fromJson(data['order']) : null,
+      otpRequired: data['otp_required'] == true,
     );
   }
 
@@ -35,6 +36,8 @@ class RiderService {
     String? recipientName,
     String? latitude,
     String? longitude,
+    String? signatureUrl,
+    String? otp,
   }) async {
     await ApiService.post('/rider/deliveries/$assignmentId/complete', {
       'photo_urls': photoUrls,
@@ -42,6 +45,8 @@ class RiderService {
       if (recipientName != null && recipientName.isNotEmpty) 'recipient_name': recipientName,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
+      if (signatureUrl != null && signatureUrl.isNotEmpty) 'signature_url': signatureUrl,
+      if (otp != null && otp.isNotEmpty) 'otp': otp,
     });
   }
 
@@ -56,6 +61,13 @@ class RiderService {
 
   static Future<void> setAvailability(bool online) async {
     await ApiService.patch('/rider/me/availability', {'online': online});
+  }
+
+  static Future<void> updateLocation(double latitude, double longitude) async {
+    await ApiService.patch('/rider/me/location', {
+      'latitude': latitude,
+      'longitude': longitude,
+    });
   }
 
   static Future<({List<NotificationItem> items, int unreadCount})> getNotifications({

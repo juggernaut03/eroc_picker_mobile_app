@@ -1,8 +1,7 @@
-import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -10,7 +9,9 @@ import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/rider_service.dart';
 import '../../utils/app_theme.dart';
+import '../../widgets/delivery_map_preview.dart';
 import '../../widgets/status_badge.dart';
+import 'pod_screen.dart';
 
 class DeliveryDetailScreen extends StatefulWidget {
   final DeliveryAssignment assignment;
@@ -23,11 +24,10 @@ class DeliveryDetailScreen extends StatefulWidget {
 
 class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
   bool _loading = false;
+  bool _otpRequired = false;
   late DeliveryAssignment _assignment;
   Order? _order;
-  final _notesCtrl = TextEditingController();
-  final List<File> _photos = [];
-  final _picker = ImagePicker();
+  Timer? _locationTimer;
 
   @override
   void initState() {
@@ -39,8 +39,22 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
 
   @override
   void dispose() {
-    _notesCtrl.dispose();
+    _locationTimer?.cancel();
     super.dispose();
+  }
+
+  void _syncLocationPing() {
+    _locationTimer?.cancel();
+    if (_assignment.status != 'out_for_delivery') return;
+    _pingLocation();
+    _locationTimer = Timer.periodic(const Duration(seconds: 45), (_) => _pingLocation());
+  }
+
+  Future<void> _pingLocation() async {
+    try {
+      final pos = await Geolocator.getCurrentPosition();
+      await RiderService.updateLocation(pos.latitude, pos.longitude);
+    } catch (_) {}
   }
 
   Future<void> _load() async {
@@ -51,7 +65,9 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
       setState(() {
         _assignment = res.assignment;
         _order = res.order ?? _order;
+        _otpRequired = res.otpRequired;
       });
+      _syncLocationPing();
     } catch (_) {}
     finally {
       if (mounted) setState(() => _loading = false);
@@ -84,12 +100,10 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
           ? 'https://www.google.com/maps/dir/?api=1&origin=$origin&destination=$dest&travelmode=driving'
           : 'https://www.google.com/maps/dir/?api=1&destination=$dest&travelmode=driving',
     );
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open maps')),
-        );
-      }
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open maps')),
+      );
     }
   }
 
@@ -114,50 +128,14 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
     }
   }
 
-  Future<void> _pickPhoto() async {
-    final file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 75);
-    if (file != null && mounted) setState(() => _photos.add(File(file.path)));
-  }
-
-  Future<void> _complete() async {
-    if (_photos.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least one delivery photo'), backgroundColor: AppTheme.error),
-      );
-      return;
-    }
-    setState(() => _loading = true);
-    try {
-      final urls = <String>[];
-      for (final f in _photos) {
-        urls.add(await RiderService.uploadPodPhoto(f));
-      }
-      String? lat;
-      String? lng;
-      try {
-        final pos = await Geolocator.getCurrentPosition();
-        lat = pos.latitude.toString();
-        lng = pos.longitude.toString();
-      } catch (_) {}
-
-      await RiderService.completeDelivery(
-        _assignment.id,
-        photoUrls: urls,
-        notes: _notesCtrl.text.trim(),
-        latitude: lat,
-        longitude: lng,
-      );
-      if (!mounted) return;
-      Navigator.pop(context, true);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+  Future<void> _openPod() async {
+    final done = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PodScreen(assignment: _assignment, otpRequired: _otpRequired),
+      ),
+    );
+    if (done == true && mounted) Navigator.pop(context, true);
   }
 
   Future<void> _fail() async {
@@ -201,7 +179,13 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
       backgroundColor: AppTheme.surface,
       appBar: AppBar(
         title: Text('Order #${_assignment.ordersIdorders}'),
-        actions: [if (_loading) const Padding(padding: EdgeInsets.all(16), child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))],
+        actions: [
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -222,11 +206,17 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
             ),
           ],
           const SizedBox(height: 16),
+          DeliveryMapPreview(latitude: order?.latitude, longitude: order?.longitude),
+          const SizedBox(height: 12),
           if (order?.deliveryDetails != null)
             Text(order!.deliveryDetails!, style: const TextStyle(fontSize: 15)),
           if (order?.deliveryDate != null) ...[
             const SizedBox(height: 8),
             Text('Delivery date: ${order!.deliveryDate}', style: const TextStyle(color: AppTheme.textSecondary)),
+          ],
+          if (order?.deliverySlot != null) ...[
+            const SizedBox(height: 4),
+            Text('Slot: ${order!.deliverySlot}', style: const TextStyle(color: AppTheme.textSecondary)),
           ],
           const SizedBox(height: 12),
           OutlinedButton.icon(
@@ -234,34 +224,14 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
             icon: const Icon(Icons.map_outlined),
             label: const Text('Open in Google Maps'),
           ),
-          if (_assignment.status == 'out_for_delivery' && cap('can_complete_delivery')) ...[
-            const SizedBox(height: 24),
-            const Text('Proof of delivery', style: TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ..._photos.map((f) => ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(f, width: 72, height: 72, fit: BoxFit.cover),
-                    )),
-                if (cap('can_upload_pod'))
-                  OutlinedButton.icon(
-                    onPressed: _pickPhoto,
-                    icon: const Icon(Icons.camera_alt_outlined),
-                    label: const Text('Add photo'),
-                  ),
-              ],
-            ),
+          if (_assignment.status == 'out_for_delivery') ...[
             const SizedBox(height: 12),
-            TextField(
-              controller: _notesCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Notes (optional)',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
+            const Row(
+              children: [
+                Icon(Icons.gps_fixed, size: 16, color: AppTheme.textSecondary),
+                SizedBox(width: 6),
+                Text('Live location sharing active', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              ],
             ),
           ],
         ],
@@ -289,9 +259,9 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton.icon(
-                          onPressed: _loading ? null : _complete,
+                          onPressed: _loading ? null : _openPod,
                           icon: const Icon(Icons.check_circle_outline),
-                          label: const Text('Complete delivery'),
+                          label: const Text('Complete with POD'),
                         ),
                       ),
                       if (cap('can_fail_delivery')) ...[
