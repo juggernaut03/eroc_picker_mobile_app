@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../models/delivery_route_model.dart';
 import '../../models/order_model.dart';
 import '../../services/rider_location_tracker.dart';
@@ -18,6 +19,7 @@ class RiderDeliveriesScreen extends StatefulWidget {
 
 class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
   bool _loading = false;
+  bool _optimizing = false;
   List<DeliveryAssignment> _all = [];
   DeliveryRoute? _activeRoute;
 
@@ -52,9 +54,42 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
     }
   }
 
+  Future<void> _startDayRoute() async {
+    setState(() => _optimizing = true);
+    try {
+      double? lat, lng;
+      try {
+        final pos = await Geolocator.getCurrentPosition();
+        lat = pos.latitude;
+        lng = pos.longitude;
+      } catch (_) {/* fall back to store origin on the server */}
+
+      final route = await RiderService.startMyRoute(latitude: lat, longitude: lng);
+      if (!mounted) return;
+      setState(() => _activeRoute = route);
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => RiderRouteScreen(route: route)),
+      );
+      _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _optimizing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final active = _all.where((a) => a.status == 'assigned' || a.status == 'out_for_delivery').length;
+    // Rider has deliveries to do but no route built yet → offer to optimize.
+    final pendingUnrouted =
+        _all.where((a) => a.status == 'assigned' && a.stopSequence == null).length;
+    final canStartRoute = _activeRoute == null && pendingUnrouted >= 2;
     return Scaffold(
       backgroundColor: AppTheme.surface,
       body: CustomScrollView(
@@ -78,6 +113,65 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
               ),
             ),
           ),
+          if (canStartRoute && !_loading)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppTheme.primary, AppTheme.primaryDark],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          Text('$pendingUnrouted deliveries ready',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Build the most fuel- & time-efficient route from your current location.',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: FilledButton.icon(
+                          onPressed: _optimizing ? null : _startDayRoute,
+                          icon: _optimizing
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: AppTheme.primary),
+                                )
+                              : const Icon(Icons.route_rounded),
+                          label: Text(_optimizing ? 'Optimizing…' : "Start day's route"),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppTheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           if (_activeRoute != null && !_loading)
             SliverToBoxAdapter(
               child: Padding(

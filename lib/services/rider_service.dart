@@ -96,4 +96,15 @@ class RiderService {
     final res = await ApiService.get('/rider/routes/$routeId');
     return DeliveryRoute.fromJson(res['data'] as Map<String, dynamic>);
   }
+
+  /// Builds (or returns the existing) optimized route for all the rider's
+  /// pending deliveries, sequenced from [latitude]/[longitude] (the rider's
+  /// live position) when provided, else from the store origin.
+  static Future<DeliveryRoute> startMyRoute({double? latitude, double? longitude}) async {
+    final res = await ApiService.post('/rider/routes/start', {
+      if (latitude != null && longitude != null) 'latitude': latitude,
+      if (latitude != null && longitude != null) 'longitude': longitude,
+    });
+    return DeliveryRoute.fromJson(res['data'] as Map<String, dynamic>);
+  }
 }
