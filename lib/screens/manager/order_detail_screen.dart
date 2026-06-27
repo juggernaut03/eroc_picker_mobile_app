@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/item_model.dart';
 import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
@@ -629,6 +630,62 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     ),
                   );
 
+            final delivery = order.currentDeliveryAssignment;
+            final deliveryInfo = delivery == null
+                ? null
+                : _InfoCard(
+                    title: 'Delivery',
+                    icon: Icons.delivery_dining_outlined,
+                    child: Column(
+                      children: [
+                        if (delivery.rider != null) ...[
+                          _InfoRow('Rider', delivery.rider!.name),
+                          if (delivery.rider!.phone != null) _InfoRow('Phone', delivery.rider!.phone!),
+                        ],
+                        _InfoRow('Assigned', formatDateTime(delivery.assignedAt)),
+                        if (delivery.startedAt != null)
+                          _InfoRow('Started', formatDateTime(delivery.startedAt!)),
+                        if (delivery.deliveredAt != null)
+                          _InfoRow('Delivered', formatDateTime(delivery.deliveredAt!)),
+                        if (delivery.failedReason != null)
+                          _InfoRow('Failed', delivery.failedReason!),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 7),
+                          child: Row(
+                            children: [
+                              const Text('Status', style: TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
+                              const Spacer(),
+                              StatusBadge(delivery.status),
+                            ],
+                          ),
+                        ),
+                        if (delivery.podPhotoUrls.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text('Proof of delivery', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: delivery.podPhotoUrls
+                                .map((url) => ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: CachedNetworkImage(imageUrl: url, width: 72, height: 72, fit: BoxFit.cover),
+                                    ))
+                                .toList(),
+                          ),
+                          if (delivery.podNotes != null && delivery.podNotes!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: _InfoRow('Notes', delivery.podNotes!),
+                            ),
+                        ],
+                      ],
+                    ),
+                  );
+
             if (isWide && assignmentInfo != null) {
               return IntrinsicHeight(
                 child: Row(
@@ -647,6 +704,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 if (assignmentInfo != null) ...[
                   const SizedBox(height: 12),
                   assignmentInfo,
+                ],
+                if (deliveryInfo != null) ...[
+                  const SizedBox(height: 12),
+                  deliveryInfo,
                 ],
               ],
             );

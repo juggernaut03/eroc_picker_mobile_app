@@ -219,6 +219,24 @@ class _SuperAdminHomeScreenState extends State<SuperAdminHomeScreen> {
                           icon: Icons.store_rounded,
                           iconColor: const Color(0xFF60A5FA),
                         ),
+                        _KpiCard(
+                          label: 'Out for delivery',
+                          value: '${kpis?.delivery.outForDelivery ?? 0}',
+                          icon: Icons.local_shipping_outlined,
+                          iconColor: const Color(0xFFFB923C),
+                        ),
+                        _KpiCard(
+                          label: 'Delivered today',
+                          value: '${kpis?.delivery.deliveredToday ?? 0}',
+                          icon: Icons.check_circle_outline,
+                          iconColor: const Color(0xFF34D399),
+                        ),
+                        _KpiCard(
+                          label: 'Ready to deliver',
+                          value: '${kpis?.delivery.readyForDelivery ?? 0}',
+                          icon: Icons.inventory_2_outlined,
+                          iconColor: const Color(0xFF22D3EE),
+                        ),
                       ],
                     ),
                   ),
@@ -394,7 +412,7 @@ class _SuperOrderCard extends StatelessWidget {
                         'Sent ${formatDateTime(order.sentToSuperAdminAt!)}'),
                 ],
               ),
-              if (assignment?.assignedTo != null) ...[
+                  if (assignment?.assignedTo != null) ...[
                 const SizedBox(height: 8),
                 Text(
                   'Picker: ${assignment!.assignedTo!.name}',
@@ -404,6 +422,25 @@ class _SuperOrderCard extends StatelessWidget {
                       fontSize: 12,
                       color: Color(0xFF475569),
                       fontWeight: FontWeight.w600),
+                ),
+              ],
+              if (order.deliveryStatus != null) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    StatusBadge(order.deliveryStatus!, small: true),
+                    if (order.currentDeliveryAssignment?.rider != null) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Rider: ${order.currentDeliveryAssignment!.rider!.name}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ],

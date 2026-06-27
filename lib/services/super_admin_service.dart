@@ -8,12 +8,14 @@ class SuperAdminKpis {
   final int sentThisMonth;
   final double totalAmount;
   final int storesCovered;
+  final DeliveryKpis delivery;
 
   SuperAdminKpis({
     required this.totalSent,
     required this.sentThisMonth,
     required this.totalAmount,
     required this.storesCovered,
+    required this.delivery,
   });
 
   factory SuperAdminKpis.fromJson(Map<String, dynamic> json) => SuperAdminKpis(
@@ -21,6 +23,33 @@ class SuperAdminKpis {
         sentThisMonth: json['sent_this_month'] ?? 0,
         totalAmount: (json['total_amount'] ?? 0).toDouble(),
         storesCovered: json['stores_covered'] ?? 0,
+        delivery: DeliveryKpis.fromJson(
+          (json['delivery'] as Map<String, dynamic>?) ?? {},
+        ),
+      );
+}
+
+class DeliveryKpis {
+  final int readyForDelivery;
+  final int outForDelivery;
+  final int deliveredToday;
+  final int failed;
+  final int activeRiders;
+
+  DeliveryKpis({
+    required this.readyForDelivery,
+    required this.outForDelivery,
+    required this.deliveredToday,
+    required this.failed,
+    required this.activeRiders,
+  });
+
+  factory DeliveryKpis.fromJson(Map<String, dynamic> json) => DeliveryKpis(
+        readyForDelivery: json['ready_for_delivery'] ?? 0,
+        outForDelivery: json['out_for_delivery'] ?? 0,
+        deliveredToday: json['delivered_today'] ?? 0,
+        failed: json['failed'] ?? 0,
+        activeRiders: json['active_riders'] ?? 0,
       );
 }
 

@@ -756,6 +756,10 @@ class _OrderCard extends StatelessWidget {
                             ),
                           ),
                           StatusBadge(order.status, small: true),
+                          if (order.deliveryStatus != null) ...[
+                            const SizedBox(width: 6),
+                            StatusBadge(order.deliveryStatus!, small: true),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 8),

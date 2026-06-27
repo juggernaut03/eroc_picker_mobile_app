@@ -55,6 +55,20 @@ class ManagerService {
     });
   }
 
+  static Future<({AssignedUser rider, List<DeliveryAssignment> deliveries})> getRider(
+    String riderId,
+  ) async {
+    final res = await ApiService.get('/manager/riders/$riderId');
+    final data = res['data'] as Map<String, dynamic>;
+    final deliveries = (data['deliveries'] as List? ?? [])
+        .map((e) => DeliveryAssignment.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return (
+      rider: AssignedUser.fromJson(data['rider'] as Map<String, dynamic>),
+      deliveries: deliveries,
+    );
+  }
+
   static Future<void> assignOrder({
     required int ordersIdorders,
     required String storeCode,

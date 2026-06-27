@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/order_model.dart';
 import '../../services/manager_service.dart';
 import '../../utils/app_theme.dart';
+import 'rider_detail_screen.dart';
 
 class RidersTab extends StatefulWidget {
   const RidersTab({super.key});
@@ -36,6 +37,25 @@ class _RidersTabState extends State<RidersTab> {
   }
 
   int get _totalActive => _riders.fold(0, (sum, r) => sum + r.activeOrders);
+
+  Future<void> _openRider(AssignedUser rider) async {
+    try {
+      final res = await ManagerService.getRider(rider.id);
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RiderDetailScreen(rider: res.rider, deliveries: res.deliveries),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,17 +108,48 @@ class _RidersTabState extends State<RidersTab> {
               delegate: SliverChildBuilderDelegate(
                 (ctx, i) {
                   final r = _riders[i];
+                  final initials = r.name.isNotEmpty ? r.name[0].toUpperCase() : '?';
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: ListTile(
-                      tileColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      leading: CircleAvatar(child: Text(r.name.isNotEmpty ? r.name[0] : '?')),
-                      title: Text(r.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-                      subtitle: Text('${r.activeOrders} active deliveries'),
-                      trailing: (r.isActive ?? true)
-                          ? const Icon(Icons.circle, color: AppTheme.success, size: 10)
-                          : const Icon(Icons.circle, color: AppTheme.textMuted, size: 10),
+                    child: Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => _openRider(r),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppTheme.border),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: AppTheme.primary.withValues(alpha: 0.15),
+                                child: Text(initials, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w800)),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(r.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                                    Text(r.email, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text('${r.activeOrders}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: AppTheme.primary)),
+                                  const Text('active', style: TextStyle(fontSize: 10, color: AppTheme.textMuted)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   );
                 },
