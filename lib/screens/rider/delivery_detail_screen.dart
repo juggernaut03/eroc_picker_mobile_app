@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/rider_location_tracker.dart';
 import '../../services/rider_service.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/geo_utils.dart';
 import '../../utils/osm_links.dart';
 import '../../widgets/delivery_map_preview.dart';
 import '../../widgets/status_badge.dart';
@@ -86,9 +87,8 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
       pos = await Geolocator.getCurrentPosition();
     } catch (_) {}
 
-    final destLat = double.tryParse(lat);
-    final destLng = double.tryParse(lng);
-    if (destLat == null || destLng == null) {
+    final dest = parseDeliveryLatLng(lat, lng);
+    if (dest == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid delivery coordinates')),
       );
@@ -99,8 +99,8 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
       OsmLinks.directionsUrl(
         originLat: pos?.latitude,
         originLng: pos?.longitude,
-        destLat: destLat,
-        destLng: destLng,
+        destLat: dest.latitude,
+        destLng: dest.longitude,
       ),
     );
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
