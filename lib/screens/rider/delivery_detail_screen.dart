@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/rider_location_tracker.dart';
 import '../../services/rider_service.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/osm_links.dart';
 import '../../widgets/delivery_map_preview.dart';
 import '../../widgets/status_badge.dart';
 import 'pod_screen.dart';
@@ -85,12 +86,22 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
       pos = await Geolocator.getCurrentPosition();
     } catch (_) {}
 
-    final origin = pos != null ? '${pos.latitude},${pos.longitude}' : '';
-    final dest = '$lat,$lng';
+    final destLat = double.tryParse(lat);
+    final destLng = double.tryParse(lng);
+    if (destLat == null || destLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid delivery coordinates')),
+      );
+      return;
+    }
+
     final uri = Uri.parse(
-      origin.isNotEmpty
-          ? 'https://www.google.com/maps/dir/?api=1&origin=$origin&destination=$dest&travelmode=driving'
-          : 'https://www.google.com/maps/dir/?api=1&destination=$dest&travelmode=driving',
+      OsmLinks.directionsUrl(
+        originLat: pos?.latitude,
+        originLng: pos?.longitude,
+        destLat: destLat,
+        destLng: destLng,
+      ),
     );
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -214,7 +225,7 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
           OutlinedButton.icon(
             onPressed: _openMaps,
             icon: const Icon(Icons.map_outlined),
-            label: const Text('Open in Google Maps'),
+            label: const Text('Open in OpenStreetMap'),
           ),
           if (_assignment.status == 'out_for_delivery') ...[
             const SizedBox(height: 12),

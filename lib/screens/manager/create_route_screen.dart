@@ -189,7 +189,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                         Expanded(
                           child: Text(
                             '~${_suggestion!.estimatedDurationMin} min · ${_suggestion!.estimatedDistanceKm.toStringAsFixed(1)} km'
-                            '${_suggestion!.etaSource == 'google_traffic' ? ' · Google traffic' : ''}',
+                            '${_suggestion!.etaSource == 'osrm' ? ' · OSRM routing' : ''}',
                             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                           ),
                         ),
