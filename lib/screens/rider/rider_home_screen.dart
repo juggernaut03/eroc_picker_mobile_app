@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../models/notification_model.dart';
+import '../../services/rider_location_tracker.dart';
 import '../../services/rider_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/helpers.dart';
