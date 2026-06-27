@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:provider/provider.dart';
 import '../../models/delivery_route_model.dart';
 import '../../models/order_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/rider_location_tracker.dart';
 import '../../services/rider_service.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/status_badge.dart';
+import '../auth/login_screen.dart';
 import 'delivery_detail_screen.dart';
 import 'rider_route_screen.dart';
 
@@ -83,6 +86,34 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
     }
   }
 
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Log out?'),
+        content: const Text('You will need to sign in again to view your deliveries.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    RiderLocationTracker.stop();
+    await context.read<AuthProvider>().logout();
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     int countOf(String s) => _all.where((a) => a.status == s).length;
@@ -107,6 +138,11 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
             title: const Text('My Deliveries', style: TextStyle(fontWeight: FontWeight.w800)),
             actions: [
               IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
+              IconButton(
+                onPressed: _logout,
+                tooltip: 'Log out',
+                icon: const Icon(Icons.logout_rounded),
+              ),
             ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(82),
