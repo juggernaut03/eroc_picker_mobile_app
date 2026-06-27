@@ -109,4 +109,5 @@ class PickerUser {
   bool get isManager => role == 'manager';
   bool get isPicker => role == 'picker';
   bool get isAdmin => role == 'admin';
+  bool get isRider => role == 'rider';
 }

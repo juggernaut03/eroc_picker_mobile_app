@@ -5,6 +5,7 @@ import '../../utils/app_constants.dart';
 import '../../utils/app_theme.dart';
 import '../manager/manager_home_screen.dart';
 import '../picker/picker_home_screen.dart';
+import '../rider/rider_home_screen.dart';
 import '../super_admin/super_admin_home_screen.dart';
 import '../super_admin/super_admin_login_screen.dart';
 import '../../services/notification_service.dart';
@@ -51,6 +52,8 @@ class _LoginScreenState extends State<LoginScreen> {
         home = const SuperAdminHomeScreen();
       } else if (user.isManager) {
         home = const ManagerHomeScreen();
+      } else if (user.isRider) {
+        home = const RiderHomeScreen();
       } else {
         home = const PickerHomeScreen();
       }

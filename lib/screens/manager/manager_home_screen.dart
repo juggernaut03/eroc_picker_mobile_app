@@ -7,6 +7,7 @@ import '../../services/notification_service.dart';
 import '../../utils/app_theme.dart';
 import 'orders_tab.dart';
 import 'pickers_tab.dart';
+import 'riders_tab.dart';
 import 'notifications_tab.dart';
 // import 'escalations_tab.dart';
 
@@ -85,6 +86,13 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
           icon: Icons.people_outline_rounded,
           selectedIcon: Icons.people_rounded,
           label: 'Pickers',
+        ),
+      if (cap('can_view_riders'))
+        _NavEntry(
+          tab: const RidersTab(),
+          icon: Icons.delivery_dining_outlined,
+          selectedIcon: Icons.delivery_dining_rounded,
+          label: 'Riders',
         ),
       _NavEntry(
         tab: NotificationsTab(key: _notificationsKey),

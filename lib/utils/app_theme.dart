@@ -33,6 +33,11 @@ class AppTheme {
       case 'completed': return statusCompleted;
       case 'rejected': return statusRejected;
       case 'reassigned': return statusReassigned;
+      case 'ready_for_delivery': return const Color(0xFF0891B2);
+      case 'out_for_delivery': return const Color(0xFFEA580C);
+      case 'delivered': return statusCompleted;
+      case 'failed': return statusRejected;
+      case 'cancelled': return const Color(0xFF64748B);
       default: return statusPending;
     }
   }
@@ -45,6 +50,11 @@ class AppTheme {
       case 'completed': return successLight;
       case 'rejected': return errorLight;
       case 'reassigned': return const Color(0xFFF5F3FF);
+      case 'ready_for_delivery': return const Color(0xFFECFEFF);
+      case 'out_for_delivery': return const Color(0xFFFFF7ED);
+      case 'delivered': return successLight;
+      case 'failed': return errorLight;
+      case 'cancelled': return const Color(0xFFF1F5F9);
       default: return const Color(0xFFF1F5F9);
     }
   }
@@ -57,7 +67,12 @@ class AppTheme {
       case 'completed': return 'Completed';
       case 'rejected': return 'Rejected';
       case 'reassigned': return 'Reassigned';
-      default: return status;
+      case 'ready_for_delivery': return 'Ready for delivery';
+      case 'out_for_delivery': return 'Out for delivery';
+      case 'delivered': return 'Delivered';
+      case 'failed': return 'Failed';
+      case 'cancelled': return 'Cancelled';
+      default: return status.replaceAll('_', ' ');
     }
   }
 

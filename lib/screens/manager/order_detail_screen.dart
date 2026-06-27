@@ -122,6 +122,92 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
+  Future<void> _showAssignRiderDialog({bool reassign = false}) async {
+    List<AssignedUser> riders = [];
+    try {
+      riders = await ManagerService.getRiders();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    String? selectedId;
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(reassign ? 'Reassign rider' : 'Assign rider',
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: riders.isEmpty
+                ? const Text('No riders available for this store.')
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: riders.length,
+                    itemBuilder: (_, i) {
+                      final r = riders[i];
+                      final selected = selectedId == r.id;
+                      return ListTile(
+                        dense: true,
+                        title: Text(r.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text('${r.activeOrders} active deliveries'),
+                        trailing: selected ? const Icon(Icons.check_circle_rounded, color: AppTheme.primary) : null,
+                        onTap: () => setDlgState(() => selectedId = r.id),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: selectedId == null
+                  ? null
+                  : () async {
+                      Navigator.pop(ctx);
+                      try {
+                        if (reassign) {
+                          await ManagerService.reassignRider(
+                            ordersIdorders: widget.order.ordersIdorders,
+                            newRiderId: selectedId!,
+                          );
+                        } else {
+                          await ManagerService.assignRider(
+                            ordersIdorders: widget.order.ordersIdorders,
+                            riderId: selectedId!,
+                          );
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(reassign ? 'Rider reassigned' : 'Rider assigned'),
+                              backgroundColor: AppTheme.success,
+                            ),
+                          );
+                          widget.onRefresh();
+                          Navigator.pop(context);
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error),
+                          );
+                        }
+                      }
+                    },
+              child: Text(reassign ? 'Reassign' : 'Assign'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showReassignDialog() async {
     List<AssignedUser> pickers = [];
     try {
@@ -492,6 +578,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       ],
                     ),
                   ),
+                  if (order.deliveryStatus != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 7),
+                      child: Row(
+                        children: [
+                          const SizedBox(
+                            width: 130,
+                            child: Text('Delivery', style: TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
+                          ),
+                          StatusBadge(order.deliveryStatus!),
+                        ],
+                      ),
+                    ),
+                  if (order.deliveryDetails != null && order.deliveryDetails!.isNotEmpty)
+                    _InfoRow('Address', order.deliveryDetails!),
                 ],
               ),
             );
@@ -687,6 +788,45 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               children: [
                 // Completed: send to super admin, then print receipt.
                 if (order.status == 'completed') ...[
+                  if (cap('can_assign_rider') &&
+                      (order.deliveryStatus == null ||
+                          order.deliveryStatus == 'ready_for_delivery' ||
+                          order.deliveryStatus == 'failed') &&
+                      order.currentDeliveryAssignment?.status != 'assigned' &&
+                      order.currentDeliveryAssignment?.status != 'out_for_delivery')
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.delivery_dining_outlined, size: 22),
+                        label: const Text('Assign Rider',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                        onPressed: () => _showAssignRiderDialog(),
+                      ),
+                    ),
+                  if (cap('can_reassign_rider') &&
+                      (order.currentDeliveryAssignment?.status == 'assigned' ||
+                          order.currentDeliveryAssignment?.status == 'out_for_delivery')) ...[
+                    if (order.currentDeliveryAssignment?.rider != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          'Rider: ${order.currentDeliveryAssignment!.rider!.name}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.swap_horiz_rounded, size: 22),
+                        label: const Text('Reassign Rider',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                        onPressed: () => _showAssignRiderDialog(reassign: true),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   if (cap('can_send_to_super_admin'))
                     Builder(builder: (_) {
                       final alreadySent =

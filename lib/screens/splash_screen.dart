@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 import '../screens/manager/manager_home_screen.dart';
 import '../screens/picker/picker_home_screen.dart';
+import '../screens/rider/rider_home_screen.dart';
 import '../screens/super_admin/super_admin_home_screen.dart';
 import '../services/notification_service.dart';
 import '../services/update_service.dart';
@@ -65,6 +66,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         _go(const SuperAdminHomeScreen());
       } else if (user.isManager) {
         _go(const ManagerHomeScreen());
+      } else if (user.isRider) {
+        _go(const RiderHomeScreen());
       } else {
         _go(const PickerHomeScreen());
       }

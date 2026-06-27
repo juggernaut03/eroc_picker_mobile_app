@@ -30,6 +30,31 @@ class ManagerService {
     return list.map((e) => AssignedUser.fromJson(e)).toList();
   }
 
+  static Future<List<AssignedUser>> getRiders() async {
+    final res = await ApiService.get('/manager/riders');
+    final list = res['data'] as List? ?? [];
+    return list.map((e) => AssignedUser.fromJson(e)).toList();
+  }
+
+  static Future<void> assignRider({
+    required int ordersIdorders,
+    required String riderId,
+  }) async {
+    await ApiService.post('/manager/orders/$ordersIdorders/assign-rider', {
+      'rider_id': riderId,
+    });
+  }
+
+  static Future<void> reassignRider({
+    required int ordersIdorders,
+    required String newRiderId,
+  }) async {
+    await ApiService.post('/manager/deliveries/reassign', {
+      'orders_idorders': ordersIdorders,
+      'new_rider_id': newRiderId,
+    });
+  }
+
   static Future<void> assignOrder({
     required int ordersIdorders,
     required String storeCode,
