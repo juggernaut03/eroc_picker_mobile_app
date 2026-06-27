@@ -209,6 +209,108 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
+  Future<void> _showReattemptDialog({required int attemptsSoFar, required int maxAttempts}) async {
+    List<AssignedUser> riders = [];
+    try {
+      riders = await ManagerService.getRiders();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    final nextAttempt = attemptsSoFar + 1;
+    String? selectedId;
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Re-attempt delivery', style: TextStyle(fontWeight: FontWeight.w700)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text('This will be attempt $nextAttempt of $maxAttempts.',
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.primaryDark)),
+                ),
+                const SizedBox(height: 8),
+                const Text('Choose a rider:', style: TextStyle(color: AppTheme.textSecondary)),
+                const SizedBox(height: 4),
+                Flexible(
+                  child: riders.isEmpty
+                      ? const Text('No riders available for this store.')
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: riders.length,
+                          itemBuilder: (_, i) {
+                            final r = riders[i];
+                            final selected = selectedId == r.id;
+                            return ListTile(
+                              dense: true,
+                              title: Text(r.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                              subtitle: Text('${r.activeOrders} active deliveries'),
+                              trailing: selected
+                                  ? const Icon(Icons.check_circle_rounded, color: AppTheme.primary)
+                                  : null,
+                              onTap: () => setDlgState(() => selectedId = r.id),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: selectedId == null
+                  ? null
+                  : () async {
+                      Navigator.pop(ctx);
+                      try {
+                        final res = await ManagerService.reattemptDelivery(
+                          ordersIdorders: widget.order.ordersIdorders,
+                          riderId: selectedId!,
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Re-attempt ${res.attempts}/$maxAttempts dispatched · ${res.remaining} left'),
+                              backgroundColor: AppTheme.success,
+                            ),
+                          );
+                          widget.onRefresh();
+                          Navigator.pop(context);
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error),
+                          );
+                        }
+                      }
+                    },
+              child: const Text('Dispatch'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showReassignDialog() async {
     List<AssignedUser> pickers = [];
     try {
@@ -851,8 +953,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 if (order.status == 'completed') ...[
                   if (cap('can_assign_rider') &&
                       (order.deliveryStatus == null ||
-                          order.deliveryStatus == 'ready_for_delivery' ||
-                          order.deliveryStatus == 'failed') &&
+                          order.deliveryStatus == 'ready_for_delivery') &&
                       order.currentDeliveryAssignment?.status != 'assigned' &&
                       order.currentDeliveryAssignment?.status != 'out_for_delivery')
                     SizedBox(
@@ -865,6 +966,66 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         onPressed: () => _showAssignRiderDialog(),
                       ),
                     ),
+                  // Failed delivery → re-attempt, capped at 3 total attempts.
+                  if (cap('can_assign_rider') && order.deliveryStatus == 'failed') ...[
+                    Builder(builder: (_) {
+                      const maxAttempts = 3;
+                      final attempts =
+                          order.deliveryAttempts > 0 ? order.deliveryAttempts : 1;
+                      final remaining = maxAttempts - attempts;
+                      final locked = remaining <= 0;
+                      return Column(
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(10),
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: locked ? AppTheme.errorLight : AppTheme.primaryLight,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  locked ? Icons.block_rounded : Icons.refresh_rounded,
+                                  size: 18,
+                                  color: locked ? AppTheme.error : AppTheme.primaryDark,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    locked
+                                        ? 'Max $maxAttempts attempts reached — cannot re-attempt'
+                                        : 'Attempt $attempts of $maxAttempts used · $remaining left',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: locked ? AppTheme.error : AppTheme.primaryDark,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.replay_rounded, size: 22),
+                              label: const Text('Re-attempt delivery',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                              onPressed: locked
+                                  ? null
+                                  : () => _showReattemptDialog(
+                                        attemptsSoFar: attempts,
+                                        maxAttempts: maxAttempts,
+                                      ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                      );
+                    }),
+                  ],
                   if (cap('can_reassign_rider') &&
                       (order.currentDeliveryAssignment?.status == 'assigned' ||
                           order.currentDeliveryAssignment?.status == 'out_for_delivery')) ...[

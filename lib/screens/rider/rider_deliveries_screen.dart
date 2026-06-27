@@ -85,7 +85,13 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final active = _all.where((a) => a.status == 'assigned' || a.status == 'out_for_delivery').length;
+    int countOf(String s) => _all.where((a) => a.status == s).length;
+    final assigned = countOf('assigned');
+    final out = countOf('out_for_delivery');
+    final delivered = countOf('delivered');
+    final failed = countOf('failed');
+    final cancelled = countOf('cancelled');
+    final active = assigned + out;
     // Rider has deliveries to do but no route built yet → offer to optimize.
     final pendingUnrouted =
         _all.where((a) => a.status == 'assigned' && a.stopSequence == null).length;
@@ -103,13 +109,60 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
               IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
             ],
             bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(48),
+              preferredSize: const Size.fromHeight(82),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                 color: Colors.white,
-                child: Text('$active active · ${_all.length} total',
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: Text('$active active · ${_all.length} total',
+                          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                    ),
+                    SizedBox(
+                      height: 40,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                        children: [
+                          _KpiChip(
+                            label: 'Out',
+                            count: out,
+                            color: const Color(0xFFF59E0B),
+                            icon: Icons.local_shipping_rounded,
+                          ),
+                          _KpiChip(
+                            label: 'Assigned',
+                            count: assigned,
+                            color: AppTheme.primary,
+                            icon: Icons.assignment_turned_in_rounded,
+                          ),
+                          _KpiChip(
+                            label: 'Delivered',
+                            count: delivered,
+                            color: AppTheme.success,
+                            icon: Icons.check_circle_rounded,
+                          ),
+                          _KpiChip(
+                            label: 'Failed',
+                            count: failed,
+                            color: AppTheme.error,
+                            icon: Icons.cancel_rounded,
+                          ),
+                          if (cancelled > 0)
+                            _KpiChip(
+                              label: 'Cancelled',
+                              count: cancelled,
+                              color: AppTheme.textSecondary,
+                              icon: Icons.do_not_disturb_on_rounded,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -306,6 +359,60 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Compact status-count chip for the rider deliveries summary bar.
+class _KpiChip extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color color;
+  final IconData icon;
+
+  const _KpiChip({
+    required this.label,
+    required this.count,
+    required this.color,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dim = count == 0;
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: dim ? Colors.grey.shade100 : color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: dim ? AppTheme.border : color.withValues(alpha: 0.30),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: dim ? AppTheme.textMuted : color),
+          const SizedBox(width: 6),
+          Text(
+            '$count',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+              color: dim ? AppTheme.textMuted : color,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: dim ? AppTheme.textMuted : AppTheme.textSecondary,
+            ),
+          ),
         ],
       ),
     );

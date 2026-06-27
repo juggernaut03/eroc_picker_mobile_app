@@ -61,6 +61,23 @@ class ManagerService {
     });
   }
 
+  /// Re-attempt a failed delivery via a chosen rider. Returns the new attempt
+  /// number and how many attempts remain. Throws if the 3-attempt cap is hit.
+  static Future<({int attempts, int remaining})> reattemptDelivery({
+    required int ordersIdorders,
+    required String riderId,
+  }) async {
+    final res = await ApiService.post('/manager/deliveries/reattempt', {
+      'orders_idorders': ordersIdorders,
+      'rider_id': riderId,
+    });
+    final data = res['data'] as Map<String, dynamic>? ?? {};
+    return (
+      attempts: (data['delivery_attempts'] as int?) ?? 0,
+      remaining: (data['attempts_remaining'] as int?) ?? 0,
+    );
+  }
+
   static Future<({AssignedUser rider, List<DeliveryAssignment> deliveries})> getRider(
     String riderId,
   ) async {

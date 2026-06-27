@@ -16,6 +16,7 @@ class Order {
   final String? latitude;
   final String? longitude;
   final DeliveryAssignment? currentDeliveryAssignment;
+  final int deliveryAttempts;
 
   Order({
     required this.ordersIdorders,
@@ -35,6 +36,7 @@ class Order {
     this.latitude,
     this.longitude,
     this.currentDeliveryAssignment,
+    this.deliveryAttempts = 0,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) => Order(
@@ -63,6 +65,7 @@ class Order {
         currentDeliveryAssignment: json['current_delivery_assignment'] != null
             ? DeliveryAssignment.fromJson(json['current_delivery_assignment'])
             : null,
+        deliveryAttempts: json['delivery_attempts'] ?? 0,
       );
 }
 
