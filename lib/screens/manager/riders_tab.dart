@@ -61,12 +61,11 @@ class _RidersTabState extends State<RidersTab> {
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
-        SliverAppBar(
-          pinned: true,
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          flexibleSpace: FlexibleSpaceBar(
-            background: SafeArea(
+        SliverToBoxAdapter(
+          child: Material(
+            color: Colors.white,
+            child: SafeArea(
+              bottom: false,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
                 child: Column(
