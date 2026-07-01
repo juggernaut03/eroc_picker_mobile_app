@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../models/order_model.dart';
+import '../models/item_model.dart';
 import '../models/notification_model.dart';
 import '../models/delivery_route_model.dart';
 import 'api_service.dart';
@@ -13,7 +14,13 @@ class RiderService {
     return list.map((e) => DeliveryAssignment.fromJson(e)).toList();
   }
 
-  static Future<({DeliveryAssignment assignment, Order? order, bool otpRequired})> getDeliveryDetail(
+  static Future<
+      ({
+        DeliveryAssignment assignment,
+        Order? order,
+        List<OrderItem> items,
+        bool otpRequired
+      })> getDeliveryDetail(
     int ordersIdorders,
   ) async {
     final res = await ApiService.get('/rider/deliveries/$ordersIdorders');
@@ -21,6 +28,9 @@ class RiderService {
     return (
       assignment: DeliveryAssignment.fromJson(data['assignment']),
       order: data['order'] != null ? Order.fromJson(data['order']) : null,
+      items: ((data['items'] as List?) ?? const [])
+          .map((e) => OrderItem.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
       otpRequired: data['otp_required'] == true,
     );
   }

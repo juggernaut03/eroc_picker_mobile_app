@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/order_model.dart';
+import '../../models/item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/rider_location_tracker.dart';
 import '../../services/rider_service.dart';
+import '../../utils/address_utils.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/geo_utils.dart';
 import '../../utils/nav_launcher.dart';
@@ -27,6 +30,7 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
   bool _arrived = false;
   late DeliveryAssignment _assignment;
   Order? _order;
+  List<OrderItem> _items = const [];
 
   @override
   void initState() {
@@ -58,6 +62,7 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
       setState(() {
         _assignment = res.assignment;
         _order = res.order ?? _order;
+        _items = res.items;
         _otpRequired = res.otpRequired;
       });
       _syncLocationPing();
@@ -232,7 +237,7 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
           ),
           const SizedBox(height: 12),
           if (order?.deliveryDetails != null)
-            Text(order!.deliveryDetails!, style: const TextStyle(fontSize: 15)),
+            _DeliveryAddressCard(DeliveryAddress.parse(order!.deliveryDetails)),
           if (order?.deliveryDate != null) ...[
             const SizedBox(height: 8),
             Text('Delivery date: ${order!.deliveryDate}', style: const TextStyle(color: AppTheme.textSecondary)),
@@ -241,6 +246,8 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
             const SizedBox(height: 4),
             Text('Slot: ${order!.deliverySlot}', style: const TextStyle(color: AppTheme.textSecondary)),
           ],
+          const SizedBox(height: 16),
+          _ItemsSection(items: _items, totalItems: order?.totalItems),
           if (_assignment.status == 'out_for_delivery') ...[
             const SizedBox(height: 12),
             const Row(
@@ -316,6 +323,272 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
                 ),
               ),
             ),
+    );
+  }
+}
+
+/// Order line-items the rider is carrying, shown read-only (name, pack size,
+/// quantity, price). Backend sends these on the delivery-detail response.
+class _ItemsSection extends StatelessWidget {
+  final List<OrderItem> items;
+  final int? totalItems;
+  const _ItemsSection({required this.items, this.totalItems});
+
+  String _money(double? v) =>
+      v == null ? '' : '₹${v.toStringAsFixed(2)}';
+
+  @override
+  Widget build(BuildContext context) {
+    final count = items.isNotEmpty ? items.length : (totalItems ?? 0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.inventory_2_outlined,
+                size: 18, color: AppTheme.textPrimary),
+            const SizedBox(width: 6),
+            const Text(
+              'Items',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (items.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              'Item details not available for this order.',
+              style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+            ),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: Column(
+              children: [
+                for (int i = 0; i < items.length; i++)
+                  _ItemRow(item: items[i], divider: i < items.length - 1, money: _money),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ItemRow extends StatelessWidget {
+  final OrderItem item;
+  final bool divider;
+  final String Function(double?) money;
+  const _ItemRow({required this.item, required this.divider, required this.money});
+
+  @override
+  Widget build(BuildContext context) {
+    final price = item.productOfferPrice ?? item.productMrp;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        border: divider
+            ? const Border(bottom: BorderSide(color: AppTheme.border))
+            : null,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Quantity chip
+          Container(
+            margin: const EdgeInsets.only(right: 10, top: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              '×${item.orderedQuantity}',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.primary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.itemName ?? 'Item',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                if (item.packSize != null && item.packSize!.trim().isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Text(
+                      item.packSize!,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppTheme.textMuted),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (price != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 8, top: 1),
+              child: Text(
+                money(price),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Labelled delivery address card for the detail screen. Parses the flat
+/// `delivery_details` string into customer / address / phone rows, with a
+/// tappable call action on the phone number.
+class _DeliveryAddressCard extends StatelessWidget {
+  final DeliveryAddress addr;
+  const _DeliveryAddressCard(this.addr);
+
+  Future<void> _call() async {
+    final uri = Uri(scheme: 'tel', path: addr.phone);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (addr.isEmpty) {
+      return Text(
+        addr.raw.isEmpty ? 'No address provided' : addr.raw,
+        style: const TextStyle(fontSize: 15),
+      );
+    }
+
+    final line = addr.fullAddress;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.primary.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'DELIVER TO',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+              color: AppTheme.textMuted,
+            ),
+          ),
+          const SizedBox(height: 6),
+          if (addr.name != null && addr.name!.isNotEmpty)
+            Text(
+              addr.name!,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          if (line.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2, right: 6),
+                    child: Icon(Icons.location_on_outlined,
+                        size: 16, color: AppTheme.textMuted),
+                  ),
+                  Expanded(
+                    child: Text(
+                      line,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textSecondary,
+                          height: 1.35),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (addr.phone != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: InkWell(
+                onTap: _call,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.phone_outlined,
+                          size: 16, color: AppTheme.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        addr.phone!,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Tap to call',
+                        style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

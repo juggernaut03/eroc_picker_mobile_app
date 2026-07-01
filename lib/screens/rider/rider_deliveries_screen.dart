@@ -7,6 +7,7 @@ import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/rider_location_tracker.dart';
 import '../../services/rider_service.dart';
+import '../../utils/address_utils.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/status_badge.dart';
 import '../auth/login_screen.dart';
@@ -30,6 +31,16 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  Future<void> _openDetail(DeliveryAssignment a) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DeliveryDetailScreen(assignment: a),
+      ),
+    );
+    if (mounted) _load();
   }
 
   Future<void> _load() async {
@@ -334,15 +345,7 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
                         borderRadius: BorderRadius.circular(16),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(16),
-                          onTap: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => DeliveryDetailScreen(assignment: a),
-                              ),
-                            );
-                            _load();
-                          },
+                          onTap: () => _openDetail(a),
                           child: Padding(
                             padding: const EdgeInsets.all(14),
                             child: Column(
@@ -357,6 +360,20 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
                                       ),
                                     ),
                                     StatusBadge(a.status, small: true),
+                                    const SizedBox(width: 4),
+                                    IconButton(
+                                      onPressed: () => _openDetail(a),
+                                      icon: const Icon(Icons.remove_red_eye_outlined),
+                                      iconSize: 20,
+                                      color: AppTheme.primary,
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 32,
+                                        minHeight: 32,
+                                      ),
+                                      tooltip: 'View details',
+                                    ),
                                   ],
                                 ),
                                 if (a.stopSequence != null)
@@ -373,13 +390,10 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
                                   ),
                                 const SizedBox(height: 8),
                                 if (order?.deliveryDetails != null)
-                                  Text(
-                                    order!.deliveryDetails!,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                                  _AddressBlock(
+                                    DeliveryAddress.parse(order!.deliveryDetails),
                                   ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 8),
                                 Text(
                                   '${a.storeCode} · ${order?.totalItems ?? 0} items',
                                   style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
@@ -397,6 +411,87 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Structured customer/address/phone block for a delivery card, parsed from the
+/// flat comma-joined `delivery_details` string so it reads as labelled lines
+/// instead of one run-on string.
+class _AddressBlock extends StatelessWidget {
+  final DeliveryAddress addr;
+  const _AddressBlock(this.addr);
+
+  @override
+  Widget build(BuildContext context) {
+    if (addr.isEmpty) {
+      return Text(
+        addr.raw.isEmpty ? 'No address provided' : addr.raw,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+      );
+    }
+
+    final line = addr.fullAddress;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (addr.name != null && addr.name!.isNotEmpty)
+          Text(
+            addr.name!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+        if (line.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 1, right: 4),
+                  child: Icon(Icons.location_on_outlined,
+                      size: 14, color: AppTheme.textMuted),
+                ),
+                Expanded(
+                  child: Text(
+                    line,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 13, color: AppTheme.textSecondary, height: 1.3),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (addr.phone != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Row(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(right: 4),
+                  child: Icon(Icons.phone_outlined,
+                      size: 14, color: AppTheme.textMuted),
+                ),
+                Text(
+                  addr.phone!,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textSecondary,
+                      fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
