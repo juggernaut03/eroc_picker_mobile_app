@@ -24,6 +24,10 @@ class DeliveryDetailScreen extends StatefulWidget {
   State<DeliveryDetailScreen> createState() => _DeliveryDetailScreenState();
 }
 
+/// Geofence radius (metres): the rider must be within this distance of the
+/// customer location before "Complete with POD" unlocks. Single source of truth.
+const double kGeofenceRadiusMeters = 200;
+
 class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
   bool _loading = false;
   bool _otpRequired = false;
@@ -31,6 +35,29 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
   late DeliveryAssignment _assignment;
   Order? _order;
   List<OrderItem> _items = const [];
+
+  // --- Geofence state ---
+  double? _distanceToDest; // metres to customer; null = unknown/no coords
+  double _gpsAccuracy = 0; // metres; larger = less reliable fix
+  bool _overridden = false; // rider manually bypassed the fence
+
+  /// Order has usable destination coordinates to fence against.
+  bool get _hasDest =>
+      parseDeliveryLatLng(_order?.latitude, _order?.longitude) != null;
+
+  /// GPS fix is too coarse to trust the fence (accuracy worse than the radius).
+  bool get _gpsUnreliable =>
+      _gpsAccuracy > 0 && _gpsAccuracy > kGeofenceRadiusMeters;
+
+  /// Whether "Complete with POD" is allowed right now.
+  /// Fail-open when we can't fence (no coords / unreliable GPS) or on override.
+  bool get _canComplete {
+    if (_overridden) return true;
+    if (!_hasDest) return true; // can't fence an unknown location
+    if (_gpsUnreliable) return true; // don't trap on GPS drift
+    if (_distanceToDest == null) return false; // have coords, no fix yet → wait
+    return _distanceToDest! <= kGeofenceRadiusMeters;
+  }
 
   @override
   void initState() {
@@ -102,6 +129,48 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
         backgroundColor: AppTheme.success,
       ),
     );
+  }
+
+  void _onLeftFence() {
+    if (!mounted) return;
+    setState(() => _arrived = false);
+  }
+
+  void _onDistanceUpdate(double? meters, double accuracy) {
+    if (!mounted) return;
+    setState(() {
+      _distanceToDest = meters;
+      _gpsAccuracy = accuracy;
+    });
+  }
+
+  void _requestOverride() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Complete anyway?'),
+        content: Text(
+          _distanceToDest != null
+              ? "You're about ${_distanceToDest!.round()} m from the saved "
+                  "customer location. Complete only if you're actually at the "
+                  "delivery address — this override is recorded."
+              : "We couldn't confirm your distance to the customer. Complete "
+                  "only if you're at the delivery address — this override is "
+                  "recorded.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("I'm here"),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && mounted) setState(() => _overridden = true);
   }
 
   Future<void> _start() async {
@@ -221,20 +290,27 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
             return LiveNavMap(
               stops: [NavStop(point: dest, isCurrent: true)],
               height: 260,
+              arriveRadiusMeters: kGeofenceRadiusMeters,
               onArrived: _onArrived,
+              onLeft: _onLeftFence,
+              onDistanceUpdate: _onDistanceUpdate,
             );
           }),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: FilledButton.icon(
-              onPressed: _openMaps,
-              icon: const Icon(Icons.navigation_rounded),
-              label: const Text('Navigate'),
-              style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
+          // Navigate is only relevant once the rider has started the delivery
+          // (out_for_delivery). Before "Start delivery" it stays hidden.
+          if (_assignment.status == 'out_for_delivery') ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: FilledButton.icon(
+                onPressed: _openMaps,
+                icon: const Icon(Icons.navigation_rounded),
+                label: const Text('Navigate'),
+                style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 12),
           if (order?.deliveryDetails != null)
             _DeliveryAddressCard(DeliveryAddress.parse(order!.deliveryDetails)),
@@ -279,34 +355,37 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
                         ),
                       ),
                     if (_assignment.status == 'out_for_delivery' && cap('can_complete_delivery')) ...[
-                      if (_arrived)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(Icons.where_to_vote_rounded, size: 16, color: AppTheme.success),
-                              SizedBox(width: 6),
-                              Text('Arrived — ready to complete',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.success)),
-                            ],
-                          ),
-                        ),
+                      _GeofenceStatus(
+                        canComplete: _canComplete,
+                        distance: _distanceToDest,
+                        radius: kGeofenceRadiusMeters,
+                        hasDest: _hasDest,
+                        gpsUnreliable: _gpsUnreliable,
+                        overridden: _overridden,
+                      ),
+                      const SizedBox(height: 8),
                       SizedBox(
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton.icon(
-                          onPressed: _loading ? null : _openPod,
-                          style: _arrived
+                          onPressed: (_loading || !_canComplete) ? null : _openPod,
+                          style: _canComplete
                               ? ElevatedButton.styleFrom(backgroundColor: AppTheme.success)
                               : null,
                           icon: const Icon(Icons.check_circle_outline),
                           label: const Text('Complete with POD'),
                         ),
                       ),
+                      // Escape hatch: a bad customer pin or GPS glitch must never
+                      // permanently block a real delivery. Override is recorded.
+                      if (!_canComplete)
+                        Align(
+                          alignment: Alignment.center,
+                          child: TextButton(
+                            onPressed: _loading ? null : _requestOverride,
+                            child: const Text("Can't unlock? I'm here"),
+                          ),
+                        ),
                       if (cap('can_fail_delivery')) ...[
                         const SizedBox(height: 8),
                         SizedBox(
@@ -325,6 +404,78 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
             ),
     );
   }
+}
+
+/// Live geofence status strip shown above "Complete with POD". Tells the rider
+/// whether they're inside the delivery boundary and, if not, how far off.
+class _GeofenceStatus extends StatelessWidget {
+  final bool canComplete;
+  final double? distance;
+  final double radius;
+  final bool hasDest;
+  final bool gpsUnreliable;
+  final bool overridden;
+
+  const _GeofenceStatus({
+    required this.canComplete,
+    required this.distance,
+    required this.radius,
+    required this.hasDest,
+    required this.gpsUnreliable,
+    required this.overridden,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    late final IconData icon;
+    late final Color color;
+    late final String text;
+
+    if (overridden) {
+      icon = Icons.info_outline;
+      color = AppTheme.textSecondary;
+      text = 'Location override applied — this will be recorded.';
+    } else if (!hasDest) {
+      icon = Icons.location_off_outlined;
+      color = AppTheme.textSecondary;
+      text = 'No saved customer location — geofence skipped.';
+    } else if (gpsUnreliable) {
+      icon = Icons.gps_off_outlined;
+      color = AppTheme.warning;
+      text = 'Weak GPS signal — distance check skipped.';
+    } else if (distance == null) {
+      icon = Icons.gps_not_fixed;
+      color = AppTheme.textSecondary;
+      text = 'Getting your location…';
+    } else if (canComplete) {
+      icon = Icons.where_to_vote_rounded;
+      color = AppTheme.success;
+      text = "You're at the location — ready to complete.";
+    } else {
+      icon = Icons.explore_outlined;
+      color = AppTheme.warning;
+      text =
+          'Move within ${radius.round()} m to complete · currently ${_fmt(distance!)} away.';
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _fmt(double m) =>
+      m >= 1000 ? '${(m / 1000).toStringAsFixed(1)} km' : '${m.round()} m';
 }
 
 /// Order line-items the rider is carrying, shown read-only (name, pack size,

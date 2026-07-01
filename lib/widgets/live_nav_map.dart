@@ -34,6 +34,16 @@ class LiveNavMap extends StatefulWidget {
   /// Fired (once per entry) when the rider gets within [arriveRadiusMeters]
   /// of the current stop. Use to prompt "Arrived — complete delivery?".
   final VoidCallback? onArrived;
+
+  /// Fired once when the rider leaves the fence again (past the re-arm band),
+  /// so a geofence gate can re-lock itself.
+  final VoidCallback? onLeft;
+
+  /// Fired on every GPS fix with the current distance to the target (metres)
+  /// and the fix accuracy (metres). Lets the parent drive a live distance UI /
+  /// geofence gate. Distance is null when the target has no coordinates.
+  final void Function(double? meters, double accuracy)? onDistanceUpdate;
+
   final double arriveRadiusMeters;
 
   const LiveNavMap({
@@ -41,6 +51,8 @@ class LiveNavMap extends StatefulWidget {
     required this.stops,
     this.height = 280,
     this.onArrived,
+    this.onLeft,
+    this.onDistanceUpdate,
     this.arriveRadiusMeters = 60,
   });
 
@@ -107,12 +119,16 @@ class _LiveNavMapState extends State<LiveNavMap> {
     final target = _target;
     if (target != null) {
       final meters = _distance(me, target.point);
+      widget.onDistanceUpdate?.call(meters, pos.accuracy);
       if (!_arrivedFired && meters <= widget.arriveRadiusMeters) {
         _arrivedFired = true;
         widget.onArrived?.call();
-      } else if (meters > widget.arriveRadiusMeters * 1.6) {
+      } else if (_arrivedFired && meters > widget.arriveRadiusMeters * 1.6) {
         _arrivedFired = false; // re-arm if they leave and return
+        widget.onLeft?.call();
       }
+    } else {
+      widget.onDistanceUpdate?.call(null, pos.accuracy);
     }
 
     if (_following) _fit();
