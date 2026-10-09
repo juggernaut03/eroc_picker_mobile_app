@@ -65,6 +65,7 @@ class PickerUser {
   final List<String> storeCodes;
   final String projectCode;
   final bool isActive;
+  final String riderAvailability;
 
   PickerUser({
     required this.id,
@@ -74,6 +75,7 @@ class PickerUser {
     required this.storeCodes,
     required this.projectCode,
     this.isActive = true,
+    this.riderAvailability = 'online',
   });
 
   factory PickerUser.fromJson(Map<String, dynamic> json) => PickerUser(
@@ -84,9 +86,10 @@ class PickerUser {
         storeCodes: List<String>.from(json['store_codes'] ?? []),
         projectCode: json['project_code'] ?? '',
         isActive: json['is_active'] ?? true,
+        riderAvailability: json['rider_availability'] ?? 'online',
       );
 
-  PickerUser copyWith({bool? isActive}) => PickerUser(
+  PickerUser copyWith({bool? isActive, String? riderAvailability}) => PickerUser(
         id: id,
         name: name,
         email: email,
@@ -94,6 +97,7 @@ class PickerUser {
         storeCodes: storeCodes,
         projectCode: projectCode,
         isActive: isActive ?? this.isActive,
+        riderAvailability: riderAvailability ?? this.riderAvailability,
       );
 
   Map<String, dynamic> toJson() => {
@@ -104,6 +108,7 @@ class PickerUser {
         'store_codes': storeCodes,
         'project_code': projectCode,
         'is_active': isActive,
+        'rider_availability': riderAvailability,
       };
 
   bool get isManager => role == 'manager';

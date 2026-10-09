@@ -24,6 +24,7 @@ class RiderDeliveriesScreen extends StatefulWidget {
 class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
   bool _loading = false;
   bool _optimizing = false;
+  bool _savingAvailability = false;
   List<DeliveryAssignment> _all = [];
   DeliveryRoute? _activeRoute;
 
@@ -97,6 +98,31 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
     }
   }
 
+  Future<void> _toggleAvailability(bool next) async {
+    if (_savingAvailability) return;
+    setState(() => _savingAvailability = true);
+    try {
+      await context.read<AuthProvider>().setRiderAvailability(next);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(next
+              ? "You're online — new deliveries can be assigned to you"
+              : "You're offline — new deliveries will skip you"),
+          backgroundColor: next ? AppTheme.success : AppTheme.warning,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingAvailability = false);
+    }
+  }
+
   Future<void> _logout() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -138,6 +164,10 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
     final pendingUnrouted =
         _all.where((a) => a.status == 'assigned' && a.stopSequence == null).length;
     final canStartRoute = _activeRoute == null && pendingUnrouted >= 2;
+    final user = context.watch<AuthProvider>().user;
+    final ui = context.watch<AuthProvider>().uiConfig;
+    final canSetAvailability = ui == null ? true : ui.can('can_set_rider_availability');
+    final isOnline = (user?.riderAvailability ?? 'online') == 'online';
     return Scaffold(
       backgroundColor: AppTheme.surface,
       body: CustomScrollView(
@@ -213,6 +243,17 @@ class _RiderDeliveriesScreenState extends State<RiderDeliveriesScreen> {
               ),
             ),
           ),
+          if (canSetAvailability)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: _RiderAvailabilityStrip(
+                  isOnline: isOnline,
+                  saving: _savingAvailability,
+                  onChanged: _toggleAvailability,
+                ),
+              ),
+            ),
           if (canStartRoute && !_loading)
             SliverToBoxAdapter(
               child: Padding(
@@ -492,6 +533,71 @@ class _AddressBlock extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Rider self-toggle for `rider_availability`. Offline riders are skipped by
+/// round-robin delivery assignment (riderRoundRobinService.js).
+class _RiderAvailabilityStrip extends StatelessWidget {
+  final bool isOnline;
+  final bool saving;
+  final ValueChanged<bool> onChanged;
+
+  const _RiderAvailabilityStrip({
+    required this.isOnline,
+    required this.saving,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = isOnline ? AppTheme.success : AppTheme.warning;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle, boxShadow: [
+              BoxShadow(color: accent.withValues(alpha: 0.5), blurRadius: 6),
+            ]),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isOnline ? 'Online — available for new deliveries' : 'Offline — not accepting new deliveries',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ),
+          if (saving)
+            const SizedBox(
+              width: 18, height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            Transform.scale(
+              scale: 0.8,
+              child: Switch.adaptive(
+                value: isOnline,
+                activeColor: AppTheme.success,
+                onChanged: onChanged,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

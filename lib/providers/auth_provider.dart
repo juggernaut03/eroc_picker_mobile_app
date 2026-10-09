@@ -91,4 +91,11 @@ class AuthProvider extends ChangeNotifier {
     _user = updated;
     notifyListeners();
   }
+
+  /// Rider self-toggle of `rider_availability`. Throws on failure.
+  Future<void> setRiderAvailability(bool online) async {
+    final updated = await AuthService.setMyRiderAvailability(online);
+    _user = updated;
+    notifyListeners();
+  }
 }

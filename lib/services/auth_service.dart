@@ -76,6 +76,18 @@ class AuthService {
     return updated;
   }
 
+  /// Rider self-toggles `rider_availability` (online/offline). Round-robin
+  /// rider assignment skips offline riders (riderRoundRobinService.js).
+  static Future<PickerUser> setMyRiderAvailability(bool online) async {
+    final res = await ApiService.patch(
+      '/rider/me/availability',
+      {'online': online},
+    );
+    final updated = PickerUser.fromJson(res['data']);
+    await _storage.write(key: _keyUser, value: jsonEncode(updated.toJson()));
+    return updated;
+  }
+
   static Future<void> logout() async {
     await _storage.delete(key: _keyToken);
     await _storage.delete(key: _keyUser);
