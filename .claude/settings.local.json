@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/gauravpawar/Desktop/SHALVI PICKER/picker_app_backend/**)",
+      "Bash(node seed-admin-users.js:*)",
+      "Bash(node:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

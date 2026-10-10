@@ -36,8 +36,12 @@ class ManagerService {
     return list.map((e) => AssignedUser.fromJson(e)).toList();
   }
 
-  static Future<List<AssignedUser>> getRiders() async {
-    final res = await ApiService.get('/manager/riders');
+  /// Pass [storeCode] to get only riders assignable to that store's orders.
+  static Future<List<AssignedUser>> getRiders({String? storeCode}) async {
+    final query = storeCode == null || storeCode.isEmpty
+        ? ''
+        : '?store_code=${Uri.encodeQueryComponent(storeCode)}';
+    final res = await ApiService.get('/manager/riders$query');
     final list = res['data'] as List? ?? [];
     return list.map((e) => AssignedUser.fromJson(e)).toList();
   }

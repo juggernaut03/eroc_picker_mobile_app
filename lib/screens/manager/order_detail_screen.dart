@@ -126,7 +126,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> _showAssignRiderDialog({bool reassign = false}) async {
     List<AssignedUser> riders = [];
     try {
-      riders = await ManagerService.getRiders();
+      riders = await ManagerService.getRiders(storeCode: widget.order.storeCode);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -212,7 +212,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> _showReattemptDialog({required int attemptsSoFar, required int maxAttempts}) async {
     List<AssignedUser> riders = [];
     try {
-      riders = await ManagerService.getRiders();
+      riders = await ManagerService.getRiders(storeCode: widget.order.storeCode);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -955,7 +955,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       (order.deliveryStatus == null ||
                           order.deliveryStatus == 'ready_for_delivery') &&
                       order.currentDeliveryAssignment?.status != 'assigned' &&
-                      order.currentDeliveryAssignment?.status != 'out_for_delivery')
+                      order.currentDeliveryAssignment?.status != 'out_for_delivery') ...[
                     SizedBox(
                       width: double.infinity,
                       height: 52,
@@ -966,6 +966,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         onPressed: () => _showAssignRiderDialog(),
                       ),
                     ),
+                    const SizedBox(height: 10),
+                  ],
                   // Failed delivery → re-attempt, capped at 3 total attempts.
                   if (cap('can_assign_rider') && order.deliveryStatus == 'failed') ...[
                     Builder(builder: (_) {
